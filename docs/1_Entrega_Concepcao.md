@@ -116,3 +116,11 @@ erDiagram
     USUARIO ||--o{ MEDICAMENTO : "cadastra"
     MEDICAMENTO ||--o{ DOSE : "possui"
 ```
+
+## 8. Visão de Futuro e Evolução (Roadmap)
+Para garantir que o software seja escalável e atenda a necessidades reais de mercado além do escopo inicial (MVP), projetamos as seguintes funcionalidades para iterações futuras:
+*   **Integração com API da ANVISA:** Cadastro ágil e automatizado dos medicamentos via leitura do código de barras da caixa.
+*   **Notificações Externas de Alerta:** Integração com APIs de mensageria (como Twilio) para enviar SMS/WhatsApp ao paciente nos horários das doses, e alertas aos familiares em caso de omissão recorrente.
+*   **Inteligência de Geolocalização:** Ao disparar o gatilho de "5 dias restantes", o sistema sugere farmácias próximas baseadas na localização do GPS do usuário para facilitar a recompra via delivery.
+*   **Gamificação da Saúde (Adesão):** Criação de um sistema de recompensas e *streaks* (dias consecutivos sem errar a dose), estimulando positivamente pacientes (especialmente idosos) a manterem a rotina correta.
+*   **Geração de Relatórios Clínicos:** Exportação do histórico de uso em formato PDF para que o paciente possa compartilhar facilmente com seu médico responsável durante as consultas.

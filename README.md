@@ -15,6 +15,14 @@ Este projeto está alinhado ao **ODS 3 - Saúde e Bem-Estar** da ONU, buscando g
 6. **RF06 - Gestão Familiar:** O sistema deve permitir que familiares ou responsáveis acompanhem as informações de estoque e rotina de doses, desde que possuam autorização prévia do usuário.
 7. **RF07 - Ajuste Manual de Estoque:** O sistema deve permitir que o usuário ajuste manualmente o estoque de um medicamento em caso de nova compra ou correção de contagem.
 
+## Roadmap e Visão de Futuro (Pós-MVP)
+Visando a evolução contínua da plataforma para além dos requisitos acadêmicos básicos, estruturamos um backlog de melhorias que transformam o projeto em uma solução de mercado:
+*   **Integração com API da ANVISA:** Preenchimento automático de dados do medicamento via leitura de código de barras.
+*   **Notificações Externas:** Disparo de alertas via WhatsApp/SMS (ex: Twilio) para pacientes no horário da dose e para responsáveis em caso de atrasos.
+*   **Geolocalização de Farmácias:** Sugestão automática de farmácias próximas com serviço de delivery assim que o alerta de 5 dias for acionado.
+*   **Gamificação (Adesão ao Tratamento):** Sistema de pontuação e *streaks* (dias consecutivos) para incentivar o paciente a manter a rotina.
+*   **Exportação de Relatórios Médicos:** Geração de PDF com o histórico de adesão ao tratamento para compartilhamento com médicos durante consultas.
+
 ## Cronograma de Execução
 
 | Data | Atividade | Responsável |
