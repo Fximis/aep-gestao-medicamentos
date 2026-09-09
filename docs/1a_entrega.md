@@ -81,7 +81,7 @@ classDiagram
         -String email
         -String senha
         +autenticar() boolean
-        +obterTipo() String*
+        +obterTipo() String
     }
 
     class Paciente {
@@ -115,10 +115,10 @@ classDiagram
         +marcarComoTomada() void
     }
 
-    Usuario <|-- Paciente : Herança
-    Usuario <|-- Responsavel : Herança
-    Paciente "1" *-- "0..*" Medicamento : Composição (1:N)
-    Medicamento "1" *-- "0..*" Dose : Composição (1:N)
+    Usuario <|-- Paciente : Heranca
+    Usuario <|-- Responsavel : Heranca
+    Paciente "1" *-- "0..*" Medicamento : Possui
+    Medicamento "1" *-- "0..*" Dose : Agrupa
 ```
 
 ---
