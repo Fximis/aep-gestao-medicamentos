@@ -34,7 +34,85 @@ O repositório foi organizado da seguinte forma para manter a lógica e a clarez
 *   `/database`: Scripts SQL necessários para criar e popular as tabelas do banco de dados.
 
 ## 6. Diagrama de Classe
-*(A equipe deve gerar a imagem do diagrama contendo herança, polimorfismo e composição (1:N) e inserir aqui)*
+
+```mermaid
+classDiagram
+    class Usuario {
+        <<abstract>>
+        -int id
+        -String nome
+        -String email
+        -String senha
+        +autenticar() boolean
+        +obterTipo() String*
+    }
+
+    class Paciente {
+        -String condicaoMedica
+        +obterTipo() String
+        +confirmarDose(Dose dose) void
+    }
+
+    class Responsavel {
+        -String vinculoFamiliar
+        +obterTipo() String
+        +monitorarEstoque() void
+    }
+
+    class Medicamento {
+        -int id
+        -String nome
+        -int quantidadeEstoque
+        -int frequenciaHoras
+        -int quantidadePorDose
+        +reduzirEstoque(int qtd) void
+        +calcularDiasRestantes() int
+        +verificarAlertaRecompra() boolean
+    }
+
+    class Dose {
+        -int id
+        -DateTime horarioPrevisto
+        -DateTime horarioConsumo
+        -boolean statusTomado
+        +marcarComoTomada() void
+    }
+
+    Usuario <|-- Paciente : Herança
+    Usuario <|-- Responsavel : Herança
+    Paciente "1" *-- "0..*" Medicamento : Composição (1:N)
+    Medicamento "1" *-- "0..*" Dose : Composição (1:N)
+```
 
 ## 7. Diagrama do Banco
-*(A equipe deve inserir a imagem do Diagrama Entidade Relacionamento - DER do banco de dados aqui)*
+
+```mermaid
+erDiagram
+    USUARIO {
+        int id PK
+        varchar nome
+        varchar email
+        varchar senha
+        varchar tipo "Enum: PACIENTE, RESPONSAVEL"
+    }
+    
+    MEDICAMENTO {
+        int id PK
+        int usuario_id FK
+        varchar nome
+        int quantidade_estoque
+        int frequencia_horas
+        int quantidade_por_dose
+    }
+    
+    DOSE {
+        int id PK
+        int medicamento_id FK
+        datetime horario_previsto
+        datetime horario_consumo
+        boolean status_tomado
+    }
+
+    USUARIO ||--o{ MEDICAMENTO : "cadastra"
+    MEDICAMENTO ||--o{ DOSE : "possui"
+```
