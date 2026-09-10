@@ -158,20 +158,22 @@ erDiagram
 
 ---
 
+
 ## 8. Cronograma de Execução
 
 | Data | Atividade | Responsável |
 | :--- | :--- | :--- |
-| 15/09/2026 | Levantamento de Requisitos e Definição de Escopo | Equipe |
-| 22/09/2026 | Elaboração da Documentação (PDF) da 1ª Entrega | Equipe |
-| 25/09/2026 | Modelagem de Dados (Diagrama de Classes e DER) | Equipe |
-| 28/09/2026 | Criação e Estruturação do Repositório GitHub | Equipe |
-| **30/09/2026** | **Envio da 1ª Entrega (Concepção e Planejamento)** | **Equipe** |
-| 10/10/2026 | Configuração do Ambiente e Banco de Dados | Equipe |
-| 20/10/2026 | Desenvolvimento do Back-end (CRUD e Regras de Negócio) | Equipe |
-| 05/11/2026 | Integração com Banco de Dados | Equipe |
-| 15/11/2026 | Testes, Validação e Ajustes Finais | Equipe |
-| **25/11/2026** | **Envio da 2ª Entrega (Software Funcional Integrado)** | **Equipe** |
+| 01/09/2026 | Levantamento de Requisitos e Definição de Escopo | Equipe |
+| 05/09/2026 | Elaboração da Documentação (PDF) da 1ª Entrega | Equipe |
+| 06/09/2026 | Modelagem de Dados (Diagrama de Classes e DER) | Equipe |
+| 08/09/2026 | Criação e Estruturação do Repositório GitHub | Equipe |
+| **09/09/2026** | **Envio da 1ª Entrega (Concepção e Planejamento)** | **Equipe** |
+| 15/09/2026 | Configuração do Ambiente e Banco de Dados | Equipe |
+| 20/09/2026 | Desenvolvimento do Back-end (CRUD e Regras de Negócio) | Equipe |
+| 15/10/2026 | Integração com Banco de Dados | Equipe |
+| 20/10/2026 | Testes, Validação e Ajustes Finais | Equipe |
+| **20/11/2026** | **Envio da 2ª Entrega (Software Funcional Integrado)** | **Equipe** |
+
 
 ---
 
