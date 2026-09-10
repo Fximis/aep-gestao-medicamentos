@@ -49,13 +49,7 @@ O paciente ou seu responsável cadastra o medicamento informando:
 * **Regra de Ouro (RN01 e RN06):** O estoque **nunca** é reduzido apenas pela passagem do horário. A dedução exige a **confirmação ativa** do paciente, garantindo que o estoque reflita estritamente o que foi ingerido.
 
 ### 3. Cálculo Dinâmico de Autonomia
-Após cada baixa de dose, o sistema recalcula a quantidade de dias restantes de tratamento utilizando a relação:
-
-$$\text{Doses Diárias} = \frac{24}{\text{frequencia\_horas}}$$
-
-$$\text{Consumo Diário} = \text{Doses Diárias} \times \text{quantidade\_por\_dose}$$
-
-$$\text{Dias Restantes} = \left\lfloor \frac{\text{quantidade\_estoque}}{\text{Consumo Diário}} \right\rfloor$$
+Após cada baixa de dose, o sistema recalcula a quantidade de dias restantes de tratamento.
 
 ### 4. Alerta Proativo de Recompra (5 Dias)
 Se $\text{Dias Restantes} \le 5$, o sistema dispara imediatamente um **alerta proativo de recompra**, oferecendo margem segura para aquisição de novas caixas antes do término do produto.
