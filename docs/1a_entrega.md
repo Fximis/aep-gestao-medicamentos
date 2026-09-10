@@ -2,6 +2,13 @@
 
 ---
 
+### Integrantes da Equipe
+* **Fellipe Miquelão Schmidt** — R.A.: `25153218-2`
+* **Lucas Thomaz Brandel Zequini** — R.A.: `25169037-2`
+* **Carlos Henrique Saran Pappa** — R.A.: `25143592-2`
+
+---
+
 ## 1. Descoberta
 O projeto de **Gestão de Medicamentos Contínuos e Controle de Estoque Familiar** surgiu da identificação de um problema comum: a dificuldade de manter uma rotina organizada de medicamentos. Atualmente, o processo de gestão é baseado em memória ou anotações manuais, o que gera esquecimentos, erros de administração, e percepção tardia da falta do remédio.
 

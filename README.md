@@ -232,3 +232,14 @@ Para além dos entregáveis acadêmicos, a arquitetura do projeto foi desenhada 
 * 📍 **Geolocalização de Farmácias:** Sugestão de farmácias parceiras com delivery quando o estoque atingir o alerta de 5 dias.
 * 🏆 **Gamificação de Adesão:** Sistema de pontuação e sequência diária (*streaks*) para estimular idosos no cumprimento do horário.
 * 📄 **Relatórios Médicos em PDF:** Exportação de histórico de adesão para acompanhamento em consultas clínicas.
+
+---
+
+## 👥 Integrantes da Equipe
+
+| Nome Completo | R.A. |
+| :--- | :---: |
+| **Fellipe Miquelão Schmidt** | `25153218-2` |
+| **Lucas Thomaz Brandel Zequini** | `25169037-2` |
+| **Carlos Henrique Saran Pappa** | `25143592-2` |
+
