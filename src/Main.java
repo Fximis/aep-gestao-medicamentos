@@ -10,12 +10,13 @@ import models.Usuario;
 import views.ConsoleView;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Ponto de Entrada Principal (Bootstrap & Controller) da Aplicação.
- * Orquestra as regras de negócio, persistência via DAO e visualização no console,
- * proporcionando uma experiência acolhedora para o paciente e rigor técnico para a avaliação.
+ * Ponto de Entrada Principal (Bootstrap & Controller) da Aplicacao.
+ * Orquestra as regras de negocio, persistencia via DAO e visualizacao no console,
+ * proporcionando uma experiencia acolhedora para o paciente e rigor tecnico para a avaliacao da AEP.
  */
 public class Main {
 
@@ -25,15 +26,15 @@ public class Main {
     private static final UsuarioDAO usuarioDAO = new UsuarioDAO();
 
     public static void main(String[] args) {
-        // 1. Inicialização e Teste de Conexão com o Banco de Dados
+        // 1. Inicializacao e Teste de Conexao com o Banco de Dados
         try {
             DatabaseConnection.getConnection();
         } catch (SQLException e) {
-            view.exibirMensagemErro("Não foi possível conectar ao banco de dados: " + e.getMessage());
+            view.exibirMensagemErro("Nao foi possivel conectar ao banco de dados: " + e.getMessage());
             return;
         }
 
-        // 2. Carrega Usuário Padrão para a Sessão (Paciente João da Silva e Cuidadora Maria)
+        // 2. Carrega Usuario Padrao para a Sessao (Paciente Joao da Silva e Cuidadora Maria)
         Paciente pacienteAtivo = carregarPacientePadrao();
         Responsavel responsavelPadrao = carregarResponsavelPadrao();
 
@@ -42,14 +43,15 @@ public class Main {
         while (executando) {
             try {
                 // Consulta dados em tempo real para alimentar o Dashboard Proativo do Paciente
-                List<Dose> dosesPendentes = doseDAO.listarPendentesPorPaciente(pacienteAtivo.getId());
+                List<Dose> devidasAgora = doseDAO.listarDosesParaTomarAgora(pacienteAtivo.getId());
+                List<Dose> proximasHoje = doseDAO.listarProximasHoje(pacienteAtivo.getId());
                 List<Medicamento> todosMeds = medicamentoDAO.listarPorUsuario(pacienteAtivo.getId());
                 List<Medicamento> criticos = todosMeds.stream()
                         .filter(Medicamento::verificarAlertaRecompra)
                         .toList();
 
                 view.exibirCabecalhoHumano(pacienteAtivo, responsavelPadrao);
-                view.exibirResumoDoDia(dosesPendentes, criticos);
+                view.exibirResumoDoDia(devidasAgora, proximasHoje, criticos);
                 int opcao = view.exibirMenuPrincipal();
 
                 switch (opcao) {
@@ -62,11 +64,11 @@ public class Main {
                     case 7 -> espacoDaFamilia(responsavelPadrao, pacienteAtivo);
                     case 8 -> painelTecnicoAEP();
                     case 0 -> {
-                        System.out.println("\nCuidado Diário finalizado com sucesso. Tenha um ótimo dia e cuide da sua saúde!");
+                        System.out.println("\nCuidado Diario finalizado com sucesso. Tenha um otimo dia e cuide da sua saude!");
                         DatabaseConnection.closeConnection();
                         executando = false;
                     }
-                    default -> view.exibirMensagemErro("Opção não reconhecida. Por favor, escolha um número válido do menu.");
+                    default -> view.exibirMensagemErro("Opcao nao reconhecida. Por favor, escolha um numero do menu.");
                 }
 
                 if (executando) {
@@ -74,58 +76,88 @@ public class Main {
                 }
 
             } catch (Exception e) {
-                view.exibirMensagemErro("Ocorreu um imprevisto na operação: " + e.getMessage());
+                view.exibirMensagemErro("Ocorreu um imprevisto na operacao: " + e.getMessage());
                 view.aguardarEnter();
             }
         }
     }
 
     /**
-     * [Opção 1] Fluxo guiado para o paciente confirmar a ingestão da dose.
-     * Lista amigavelmente apenas os remédios pendentes e dá baixa atômica no estoque.
+     * [Opcao 1] Fluxo guiado para o paciente confirmar a ingestao da dose.
+     * Mostra os remedios devidos agora e permite confirmar um por um ou todos de uma vez (opcao [T]).
      */
     private static void tomarMedicamento(Paciente paciente, Responsavel responsavel) throws SQLException {
-        List<Dose> dosesPendentes = doseDAO.listarPendentesPorPaciente(paciente.getId());
+        List<Dose> devidasAgora = doseDAO.listarDosesParaTomarAgora(paciente.getId());
 
-        if (dosesPendentes.isEmpty()) {
-            view.exibirMensagemSucesso("Que maravilha! Você não tem nenhuma dose pendente para tomar agora.");
+        if (devidasAgora.isEmpty()) {
+            List<Dose> proximas = doseDAO.listarPendentesPorPaciente(paciente.getId());
+            if (proximas.isEmpty()) {
+                view.exibirMensagemSucesso("Que maravilha! Voce nao tem nenhuma dose agendada pendente.");
+                return;
+            }
+
+            Dose proxima = proximas.get(0);
+            view.exibirMensagemSucesso("Voce esta em dia! Todos os remedios deste horario ja foram tomados.");
+            System.out.printf("Proximo remedio na rotina: '%s' (%s)\n",
+                    proxima.getNomeMedicamento(), proxima.getHorarioPrevistoFormatado());
+
+            boolean adiantar = view.lerConfirmacaoSN("Deseja antecipar e registrar a tomada dessa proxima dose agora mesmo? (S/N): ");
+            if (adiantar) {
+                Medicamento medAtualizado = doseDAO.confirmarTomadaDose(proxima.getId());
+                view.exibirConfirmacaoDoseSucesso(medAtualizado, responsavel);
+            } else {
+                System.out.println("Operacao cancelada. Medicamento mantido para o horario previsto.");
+            }
             return;
         }
 
-        view.exibirListaMedicamentosParaTomar(dosesPendentes);
-        int escolha = view.lerInteiro("Digite o número do remédio [1-" + dosesPendentes.size() + "] ou 0 para voltar: ");
+        view.exibirListaMedicamentosParaTomar(devidasAgora);
+        String entrada = view.lerOpcaoTomadaDose("Digite o numero do remedio, [T] para tomar todos ou [0] para voltar: ");
 
-        if (escolha == 0) {
-            System.out.println("Operação cancelada. Nenhuma alteração foi realizada.");
+        if ("0".equals(entrada)) {
+            System.out.println("Operacao cancelada. Nenhuma alteracao foi realizada.");
             return;
         }
 
-        if (escolha < 1 || escolha > dosesPendentes.size()) {
-            view.exibirMensagemErro("Opção inválida. Escolha um número entre 1 e " + dosesPendentes.size() + ".");
+        if ("T".equals(entrada)) {
+            List<Integer> ids = devidasAgora.stream().map(Dose::getId).toList();
+            List<Medicamento> atualizados = doseDAO.confirmarTodasDosesAgora(ids);
+            view.exibirConfirmacaoLoteSucesso(atualizados, responsavel);
             return;
         }
-
-        Dose doseEscolhida = dosesPendentes.get(escolha - 1);
 
         try {
+            int escolha = Integer.parseInt(entrada);
+            if (escolha < 1 || escolha > devidasAgora.size()) {
+                view.exibirMensagemErro("Opcao invalida. Escolha um numero entre 1 e " + devidasAgora.size() + ".");
+                return;
+            }
+
+            Dose doseEscolhida = devidasAgora.get(escolha - 1);
             Medicamento medAtualizado = doseDAO.confirmarTomadaDose(doseEscolhida.getId());
             view.exibirConfirmacaoDoseSucesso(medAtualizado, responsavel);
+
+        } catch (NumberFormatException e) {
+            view.exibirMensagemErro("Entrada nao reconhecida. Digite o numero da lista ou [T] para todos.");
         } catch (IllegalStateException | IllegalArgumentException e) {
             view.exibirMensagemErro(e.getMessage());
         }
     }
 
     /**
-     * [Opção 2] Exibe a agenda de remédios de hoje e o histórico recente.
+     * [Opcao 2] Exibe a agenda organizada de remedios e o historico recente.
      */
     private static void verMinhaRotina(Paciente paciente) throws SQLException {
-        List<Dose> pendentes = doseDAO.listarPendentesPorPaciente(paciente.getId());
+        List<Dose> devidasAgora = doseDAO.listarDosesParaTomarAgora(paciente.getId());
+        List<Dose> proximasHoje = doseDAO.listarProximasHoje(paciente.getId());
+        List<Dose> proximosDias = doseDAO.listarProximosDias(paciente.getId());
         List<Dose> historico = doseDAO.listarHistoricoRecente(paciente.getId(), 5);
-        view.exibirMinhaRotina(pendentes, historico);
+
+        view.exibirMinhaRotina(devidasAgora, proximasHoje, proximosDias, historico);
     }
 
     /**
-     * [Opção 3] Consulta o estoque atual e cálculo dinâmico de autonomia de cada remédio.
+     * [Opcao 3] Consulta o catalogo de medicamentos, posologia, estoque e autonomia.
      */
     private static void verMeusMedicamentos(Paciente paciente) throws SQLException {
         List<Medicamento> medicamentos = medicamentoDAO.listarPorUsuario(paciente.getId());
@@ -133,126 +165,63 @@ public class Main {
     }
 
     /**
-     * [Opção 4] Reabastecimento intuitivo de estoque (Chegou caixinha nova).
-     * Permite adicionar comprimidos de nova embalagem ou retificar contagem física (RF07 / RN07).
+     * [Opcao 4] Reabastecimento intuitivo de estoque (Chegou caixinha nova).
+     * Permite somar comprimidos comprados na farmacia ou retificar contagem fisica (RF07 / RN07).
      */
     private static void reporEstoque(Paciente paciente, Responsavel responsavel) throws SQLException {
         List<Medicamento> medicamentos = medicamentoDAO.listarPorUsuario(paciente.getId());
 
         if (medicamentos.isEmpty()) {
-            view.exibirMensagemAviso("Você ainda não possui medicamentos cadastrados para repor estoque.");
+            view.exibirMensagemAviso("Voce ainda nao possui medicamentos cadastrados para repor estoque.");
             return;
         }
 
-        System.out.println("\n" + "-".repeat(78));
-        System.out.println("                 📦 REPOR ESTOQUE (CHEGOU CAIXINHA NOVA!)");
-        System.out.println("-".repeat(78));
-        System.out.println("Selecione qual medicamento você deseja abastecer:\n");
+        view.exibirMenuReporEstoque(medicamentos);
+        int escolha = view.lerInteiroComFaixa("Escolha o medicamento [1-" + medicamentos.size() + "] ou 0 para voltar: ", 0, medicamentos.size());
 
-        for (int i = 0; i < medicamentos.size(); i++) {
-            Medicamento m = medicamentos.get(i);
-            System.out.printf("  [%d] %-28s (Estoque atual: %3d comp. | Dura %2d dias)\n",
-                    (i + 1), m.getNome(), m.getQuantidadeEstoque(), m.calcularDiasRestantes());
-        }
-        System.out.println("\n  [0] Voltar ao menu principal");
-        System.out.println("-".repeat(78));
-
-        int escolha = view.lerInteiro("Escolha o medicamento [1-" + medicamentos.size() + "] ou 0: ");
         if (escolha == 0) {
-            return;
-        }
-        if (escolha < 1 || escolha > medicamentos.size()) {
-            view.exibirMensagemErro("Medicamento inválido.");
             return;
         }
 
         Medicamento med = medicamentos.get(escolha - 1);
-
-        System.out.println("\nComo você prefere atualizar o estoque de '" + med.getNome() + "'?");
-        System.out.println("  [1] Adicionar comprimidos de uma nova caixa comprada (Ex: comprei caixa com 30)");
-        System.out.println("  [2] Digitar a contagem total exata (conferência do armário)");
-        System.out.println("  [0] Cancelar");
-        int modo = view.lerInteiro("Escolha a opção: ");
+        view.exibirSubmenuModoReposicao(med);
+        int modo = view.lerInteiroComFaixa("Escolha a opcao [0-2]: ", 0, 2);
 
         if (modo == 0) {
             return;
         }
 
-        int estoqueAnterior = med.getQuantidadeEstoque();
-        int novoEstoque;
-
         if (modo == 1) {
-            int comprados = view.lerInteiro("Quantos comprimidos vieram na embalagem nova? ");
-            if (comprados <= 0) {
-                view.exibirMensagemErro("A quantidade comprada deve ser maior que zero.");
-                return;
-            }
+            int comprados = view.lerInteiroPositivo("Quantos comprimidos vieram na embalagem nova? (ex: 30): ", 1);
+            int estoqueAnterior = med.getQuantidadeEstoque();
             med.adicionarEstoque(comprados);
-            novoEstoque = med.getQuantidadeEstoque();
-            medicamentoDAO.atualizarEstoque(med.getId(), novoEstoque);
+            medicamentoDAO.atualizarEstoque(med.getId(), med.getQuantidadeEstoque());
+            view.exibirResultadoReposicao(med, estoqueAnterior, comprados);
 
-            System.out.println("\n✔ Estoque reabastecido com sucesso!");
-            System.out.printf("  Medicamento: %s\n", med.getNome());
-            System.out.printf("  Estoque anterior: %d comp. ➔ Novo estoque: %d comp. (+%d comp.)\n",
-                    estoqueAnterior, novoEstoque, comprados);
         } else if (modo == 2) {
-            novoEstoque = view.lerInteiro("Informe o total exato de comprimidos contados: ");
-            if (novoEstoque < 0) {
-                view.exibirMensagemErro("O estoque físico não pode ser negativo (RN04).");
-                return;
-            }
+            int novoEstoque = view.lerInteiroPositivo("Informe o total exato de comprimidos conferidos no armario: ", 0);
             med.setQuantidadeEstoque(novoEstoque);
             medicamentoDAO.atualizarEstoque(med.getId(), novoEstoque);
-
-            System.out.println("\n✔ Contagem de estoque atualizada com sucesso!");
-            System.out.printf("  Medicamento: %s\n", med.getNome());
-            System.out.printf("  Novo estoque físico conferido: %d comprimidos.\n", novoEstoque);
-        } else {
-            view.exibirMensagemErro("Opção não reconhecida.");
-            return;
-        }
-
-        int novaAutonomia = med.calcularDiasRestantes();
-        System.out.printf("  Nova autonomia: Dura mais %d dias de tratamento!\n", novaAutonomia);
-        if (med.verificarAlertaRecompra()) {
-            System.out.printf("  ⚠️ Aviso: Mesmo com o ajuste, a autonomia é de %d dias (menor ou igual a 5 dias).\n", novaAutonomia);
-        } else {
-            System.out.println("  Situação: ✅ Nível Seguro. Não precisa se preocupar com falta por enquanto.");
+            view.exibirResultadoConferenciaFisica(med, novoEstoque);
         }
     }
 
     /**
-     * [Opção 5] Cadastro de novo medicamento com linguagem acolhedora (Create do CRUD).
+     * [Opcao 5] Cadastro de novo medicamento com linguagem acolhedora (Create do CRUD).
      */
     private static void cadastrarNovoTratamento(Paciente paciente) throws SQLException {
-        System.out.println("\n" + "-".repeat(78));
-        System.out.println("               ➕ CADASTRAR NOVO MEDICAMENTO / TRATAMENTO");
-        System.out.println("-".repeat(78));
-        System.out.println("Preencha os dados da receita médica com atenção:\n");
+        view.exibirCabecalhoNovoTratamento();
 
-        String nome = view.lerTexto("• Nome do medicamento e dosagem (ex: Dipirona 500mg, Losartana 50mg): ");
-        if (nome.isEmpty()) {
-            view.exibirMensagemErro("O nome do medicamento não pode ficar em branco.");
-            return;
-        }
+        String nome = view.lerTextoNaoVazio("* Nome do medicamento e dosagem (ex: Sinvastatina 20mg): ",
+                "O nome do medicamento nao pode ficar em branco.");
 
-        int estoqueInicial = view.lerInteiro("• Quantos comprimidos você tem em casa agora? (ex: 30): ");
-        if (estoqueInicial < 0) {
-            view.exibirMensagemErro("A quantidade inicial não pode ser negativa.");
-            return;
-        }
+        int estoqueInicial = view.lerInteiroPositivo("* Quantos comprimidos voce tem em casa agora? (ex: 30): ", 0);
 
-        int frequenciaHoras = view.lerInteiro("• De quantas em quantas horas deve tomar? (ex: 8 para 3x/dia, 12 para 2x/dia, 24 para 1x/dia): ");
-        if (frequenciaHoras <= 0) {
-            view.exibirMensagemErro("A frequência deve ser de pelo menos 1 hora.");
-            return;
-        }
+        int frequenciaHoras = view.lerInteiroPositivo(
+                "* De quantas em quantas horas deve tomar? (ex: 8 para 3x/dia, 12 para 2x/dia, 24 para 1x/dia): ", 1);
 
-        int qtdPorDose = view.lerInteiroComPadrao("• Quantos comprimidos toma por vez? [Pressione ENTER para 1]: ", 1);
-        if (qtdPorDose <= 0) {
-            view.exibirMensagemErro("A quantidade por dose deve ser de pelo menos 1 comprimido.");
-            return;
-        }
+        int qtdPorDose = view.lerInteiroComPadrao(
+                "* Quantos comprimidos toma por vez? [Pressione ENTER para 1]: ", 1, 1);
 
         Medicamento novo = new Medicamento(paciente.getId(), nome, estoqueInicial, frequenciaHoras, qtdPorDose);
         medicamentoDAO.inserir(novo);
@@ -260,37 +229,24 @@ public class Main {
         // Gera automaticamente a primeira agenda de doses do tratamento
         doseDAO.gerarAgendaFutura(novo, 4);
 
-        System.out.println("\n" + "=".repeat(78));
-        System.out.printf("✔ O tratamento com '%s' foi cadastrado com carinho no sistema!\n", novo.getNome());
-        System.out.printf("  Autonomia calculada: %d dias de medicação garantida.\n", novo.calcularDiasRestantes());
-        System.out.println("  Suas próximas doses já foram automaticamente organizadas na sua rotina.");
-        if (novo.verificarAlertaRecompra()) {
-            System.out.println("  🚨 Atenção: Este medicamento já começa com autonomia menor ou igual a 5 dias!");
-        }
-        System.out.println("=".repeat(78));
+        view.exibirConfirmacaoNovoTratamento(novo);
     }
 
     /**
-     * [Opção 6] Gestão de Medicamentos (Alterar dados posológicos ou encerrar tratamento).
-     * Realiza o Update e Delete do CRUD de forma segura e humanizada.
+     * [Opcao 6] Gestao de Medicamentos (Alterar dados posologicos ou encerrar tratamento).
+     * Realiza o Update e Delete do CRUD de forma segura, transacional e humanizada.
      */
     private static void gerenciarMedicamentos(Paciente paciente) throws SQLException {
         List<Medicamento> medicamentos = medicamentoDAO.listarPorUsuario(paciente.getId());
 
         if (medicamentos.isEmpty()) {
-            view.exibirMensagemAviso("Você não possui medicamentos cadastrados para gerenciar.");
+            view.exibirMensagemAviso("Voce nao possui medicamentos cadastrados para gerenciar.");
             return;
         }
 
-        System.out.println("\n" + "-".repeat(78));
-        System.out.println("                     ⚙️ GERENCIAR MEDICAMENTOS");
-        System.out.println("-".repeat(78));
-        System.out.println("  [1] Alterar dados de um medicamento (nome, frequência de horários ou posologia)");
-        System.out.println("  [2] Encerrar / Excluir medicamento do tratamento (Alta médica)");
-        System.out.println("  [0] Voltar ao menu principal");
-        System.out.println("-".repeat(78));
+        view.exibirMenuGerenciarMedicamentos(medicamentos);
+        int acao = view.lerInteiroComFaixa("Escolha o que deseja fazer [0-2]: ", 0, 2);
 
-        int acao = view.lerInteiro("Escolha o que deseja fazer: ");
         if (acao == 0) {
             return;
         }
@@ -303,29 +259,26 @@ public class Main {
                 System.out.printf("  [%d] %-28s (De %dh em %dh | %d comp. por dose)\n",
                         (i + 1), m.getNome(), m.getFrequenciaHoras(), m.getFrequenciaHoras(), m.getQuantidadePorDose());
             }
-            int esc = view.lerInteiro("Escolha o medicamento [1-" + medicamentos.size() + "]: ");
-            if (esc < 1 || esc > medicamentos.size()) {
-                view.exibirMensagemErro("Medicamento inválido.");
-                return;
-            }
-
+            int esc = view.lerInteiroComFaixa("Escolha o medicamento [1-" + medicamentos.size() + "]: ", 1, medicamentos.size());
             Medicamento med = medicamentos.get(esc - 1);
 
-            System.out.println("\nAtualização de dados de '" + med.getNome() + "' (ENTER mantém o valor atual):");
+            System.out.println("\nAtualizacao de dados de '" + med.getNome() + "' (ENTER mantem o valor atual):");
             String novoNome = view.lerTexto("Novo nome comercial [" + med.getNome() + "]: ");
             if (!novoNome.isEmpty()) {
                 med.setNome(novoNome);
             }
 
-            int novaFreq = view.lerInteiroComPadrao("Nova frequência em horas [" + med.getFrequenciaHoras() + "h]: ", med.getFrequenciaHoras());
+            int novaFreq = view.lerInteiroComPadrao("Nova frequencia em horas [" + med.getFrequenciaHoras() + "h]: ",
+                    med.getFrequenciaHoras(), 1);
             med.setFrequenciaHoras(novaFreq);
 
-            int novaQtdDose = view.lerInteiroComPadrao("Nova quantidade por dose [" + med.getQuantidadePorDose() + "]: ", med.getQuantidadePorDose());
+            int novaQtdDose = view.lerInteiroComPadrao("Nova quantidade por dose [" + med.getQuantidadePorDose() + "]: ",
+                    med.getQuantidadePorDose(), 1);
             med.setQuantidadePorDose(novaQtdDose);
 
             medicamentoDAO.atualizar(med);
             view.exibirMensagemSucesso("Dados do medicamento atualizados com sucesso!");
-            System.out.printf("Nova autonomia calculada: %d dias de tratamento.\n", med.calcularDiasRestantes());
+            System.out.printf("Nova autonomia calculada: Dura %d dias de tratamento.\n", med.calcularDiasRestantes());
 
         } else if (acao == 2) {
             // Delete do CRUD
@@ -334,37 +287,37 @@ public class Main {
                 Medicamento m = medicamentos.get(i);
                 System.out.printf("  [%d] %s\n", (i + 1), m.getNome());
             }
-            int esc = view.lerInteiro("Escolha o medicamento [1-" + medicamentos.size() + "]: ");
-            if (esc < 1 || esc > medicamentos.size()) {
-                view.exibirMensagemErro("Medicamento inválido.");
-                return;
-            }
-
+            int esc = view.lerInteiroComFaixa("Escolha o medicamento [1-" + medicamentos.size() + "]: ", 1, medicamentos.size());
             Medicamento med = medicamentos.get(esc - 1);
-            String confirmacao = view.lerTexto("Tem certeza de que o tratamento com '" + med.getNome() + "' foi encerrado e deseja removê-lo? (S/N): ");
-            if ("S".equalsIgnoreCase(confirmacao)) {
+
+            boolean confirmacao = view.lerConfirmacaoSN(
+                    "Tem certeza de que o tratamento com '" + med.getNome() + "' foi encerrado e deseja remove-lo? (S/N): ");
+
+            if (confirmacao) {
                 medicamentoDAO.excluir(med.getId());
-                view.exibirMensagemSucesso("Medicamento e histórico de doses removidos com sucesso.");
+                view.exibirMensagemSucesso("Medicamento e historico de doses removidos com sucesso.");
             } else {
-                System.out.println("Operação cancelada. Medicamento mantido ativo.");
+                System.out.println("Operacao cancelada. Medicamento mantido ativo.");
             }
-        } else {
-            view.exibirMensagemErro("Opção não reconhecida.");
         }
     }
 
     /**
-     * [Opção 7] Painel do Responsável/Cuidador (RF06 / RN08).
+     * [Opcao 7] Painel do Responsavel/Cuidador (RF06 / RN08).
      */
     private static void espacoDaFamilia(Responsavel responsavel, Paciente paciente) throws SQLException {
         List<Medicamento> medicamentos = medicamentoDAO.listarPorUsuario(paciente.getId());
-        List<Dose> dosesPendentes = doseDAO.listarPendentesPorPaciente(paciente.getId());
-        view.exibirPainelCuidador(responsavel, paciente, medicamentos, dosesPendentes);
+        List<Dose> todasPendentes = doseDAO.listarPendentesPorPaciente(paciente.getId());
+        List<Dose> pendentesHoje = todasPendentes.stream().filter(d -> d.isHoje() || d.isDevidaAgora()).toList();
+        List<Dose> todasTomadas = doseDAO.listarHistoricoRecente(paciente.getId(), 20);
+        List<Dose> tomadasHoje = todasTomadas.stream().filter(Dose::isHoje).toList();
+
+        view.exibirPainelCuidador(responsavel, paciente, medicamentos, pendentesHoje, tomadasHoje);
     }
 
     /**
-     * [Opção 8] Demonstração Técnica e Diretrizes da AEP (Banca Avaliadora).
-     * Comprova formalmente POO, JDBC, CRUD e Aderência ao Planejamento.
+     * [Opcao 8] Demonstracao Tecnica e Diretrizes da AEP (Banca Avaliadora).
+     * Comprova formalmente POO, JDBC, CRUD e Aderencia ao Planejamento.
      */
     private static void painelTecnicoAEP() throws SQLException {
         List<Usuario> usuarios = usuarioDAO.listarTodos();
@@ -380,7 +333,7 @@ public class Main {
             }
         } catch (SQLException ignored) {
         }
-        return new Paciente(1, "João da Silva", "joao@email.com", "123456", "Hipertensão e Diabetes Tipo 2");
+        return new Paciente(1, "Joao da Silva", "joao@email.com", "123456", "Hipertensao e Diabetes Tipo 2");
     }
 
     private static Responsavel carregarResponsavelPadrao() {

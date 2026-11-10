@@ -140,12 +140,115 @@ public class DoseDAO {
     }
 
     /**
+     * Retorna apenas as doses devidas agora (horario atingido ou dentro dos proximos 60 minutos).
+     */
+    public List<Dose> listarDosesParaTomarAgora(int usuarioId) throws SQLException {
+        List<Dose> pendentes = listarPendentesPorPaciente(usuarioId);
+        List<Dose> devidas = new ArrayList<>();
+        for (Dose d : pendentes) {
+            if (d.isDevidaAgora()) {
+                devidas.add(d);
+            }
+        }
+        return devidas;
+    }
+
+    /**
+     * Retorna as proximas doses previstas para hoje que ainda nao estao na janela imediata.
+     */
+    public List<Dose> listarProximasHoje(int usuarioId) throws SQLException {
+        List<Dose> pendentes = listarPendentesPorPaciente(usuarioId);
+        List<Dose> hoje = new ArrayList<>();
+        for (Dose d : pendentes) {
+            if (!d.isDevidaAgora() && d.isHoje()) {
+                hoje.add(d);
+            }
+        }
+        return hoje;
+    }
+
+    /**
+     * Retorna as doses programadas para os proximos dias (amanha em diante).
+     */
+    public List<Dose> listarProximosDias(int usuarioId) throws SQLException {
+        List<Dose> pendentes = listarPendentesPorPaciente(usuarioId);
+        List<Dose> dias = new ArrayList<>();
+        for (Dose d : pendentes) {
+            if (!d.isDevidaAgora() && !d.isHoje()) {
+                dias.add(d);
+            }
+        }
+        return dias;
+    }
+
+    /**
      * Executa a confirmação formal da dose tomada com transação atômica (ACID).
      * Deduz a quantidade do estoque físico e recalcula dias restantes (RN01, RN02, RN05, RN06).
+     * Garante o fechamento da conexão (sem memory leak).
      *
      * @return Medicamento atualizado com novo estoque e autonomia
      */
     public Medicamento confirmarTomadaDose(int doseId) throws SQLException {
+        Connection conn = DatabaseConnection.getConnection();
+        boolean autoCommitOriginal = conn.getAutoCommit();
+
+        try {
+            conn.setAutoCommit(false); // Início da Transação ACID
+            Medicamento medicamento = executarConfirmacaoDoseInterna(conn, doseId);
+            conn.commit();
+            return medicamento;
+        } catch (SQLException | RuntimeException e) {
+            try {
+                conn.rollback();
+            } catch (SQLException ignored) {
+            }
+            throw e;
+        } finally {
+            try {
+                conn.setAutoCommit(autoCommitOriginal);
+                conn.close(); // Fecha conexao para evitar resource leak
+            } catch (SQLException ignored) {
+            }
+        }
+    }
+
+    /**
+     * Confirma um lote de doses de uma vez só (ex: paciente toma todos os remédios da manhã juntos).
+     * Executado em uma única transação atômica ACID.
+     */
+    public List<Medicamento> confirmarTodasDosesAgora(List<Integer> doseIds) throws SQLException {
+        if (doseIds == null || doseIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Connection conn = DatabaseConnection.getConnection();
+        boolean autoCommitOriginal = conn.getAutoCommit();
+        List<Medicamento> atualizados = new ArrayList<>();
+
+        try {
+            conn.setAutoCommit(false);
+            for (int doseId : doseIds) {
+                Medicamento med = executarConfirmacaoDoseInterna(conn, doseId);
+                atualizados.add(med);
+            }
+            conn.commit();
+            return atualizados;
+        } catch (SQLException | RuntimeException e) {
+            try {
+                conn.rollback();
+            } catch (SQLException ignored) {
+            }
+            throw e;
+        } finally {
+            try {
+                conn.setAutoCommit(autoCommitOriginal);
+                conn.close();
+            } catch (SQLException ignored) {
+            }
+        }
+    }
+
+    private Medicamento executarConfirmacaoDoseInterna(Connection conn, int doseId) throws SQLException {
         String sqlSelectDose = "SELECT d.id, d.status_tomado, m.id AS med_id, m.usuario_id, m.nome, " +
                 "m.quantidade_estoque, m.frequencia_horas, m.quantidade_por_dose " +
                 "FROM dose d " +
@@ -155,69 +258,56 @@ public class DoseDAO {
         String sqlUpdateDose = "UPDATE dose SET status_tomado = 1, horario_consumo = ? WHERE id = ?";
         String sqlUpdateEstoque = "UPDATE medicamento SET quantidade_estoque = ? WHERE id = ?";
 
-        Connection conn = DatabaseConnection.getConnection();
-        boolean autoCommitOriginal = conn.getAutoCommit();
+        Medicamento medicamento;
+        boolean jaTomada;
 
-        try {
-            conn.setAutoCommit(false); // Início da Transação
-
-            Medicamento medicamento;
-            boolean jaTomada;
-
-            // 1. Consulta dose e medicamento
-            try (PreparedStatement stmtSelect = conn.prepareStatement(sqlSelectDose)) {
-                stmtSelect.setInt(1, doseId);
-                try (ResultSet rs = stmtSelect.executeQuery()) {
-                    if (!rs.next()) {
-                        throw new IllegalArgumentException("Dose com ID #" + doseId + " não encontrada.");
-                    }
-                    jaTomada = rs.getBoolean("status_tomado");
-                    if (jaTomada) {
-                        throw new IllegalStateException("Esta dose já foi registrada como tomada anteriormente.");
-                    }
-
-                    medicamento = new Medicamento(
-                            rs.getInt("med_id"),
-                            rs.getInt("usuario_id"),
-                            rs.getString("nome"),
-                            rs.getInt("quantidade_estoque"),
-                            rs.getInt("frequencia_horas"),
-                            rs.getInt("quantidade_por_dose")
-                    );
+        // 1. Consulta dose e medicamento
+        try (PreparedStatement stmtSelect = conn.prepareStatement(sqlSelectDose)) {
+            stmtSelect.setInt(1, doseId);
+            try (ResultSet rs = stmtSelect.executeQuery()) {
+                if (!rs.next()) {
+                    throw new IllegalArgumentException("Dose com ID #" + doseId + " nao encontrada.");
                 }
+                jaTomada = rs.getBoolean("status_tomado");
+                if (jaTomada) {
+                    throw new IllegalStateException("Esta dose ja foi registrada como tomada anteriormente.");
+                }
+
+                medicamento = new Medicamento(
+                        rs.getInt("med_id"),
+                        rs.getInt("usuario_id"),
+                        rs.getString("nome"),
+                        rs.getInt("quantidade_estoque"),
+                        rs.getInt("frequencia_horas"),
+                        rs.getInt("quantidade_por_dose")
+                );
             }
-
-            // 2. Valida estoque suficiente (RN04)
-            if (!medicamento.reduzirEstoque(medicamento.getQuantidadePorDose())) {
-                throw new IllegalStateException("Estoque insuficiente para registrar a dose de " + medicamento.getNome());
-            }
-
-            // 3. Atualiza registro da dose
-            try (PreparedStatement stmtDose = conn.prepareStatement(sqlUpdateDose)) {
-                setTimestampParam(stmtDose, 1, LocalDateTime.now());
-                stmtDose.setInt(2, doseId);
-                stmtDose.executeUpdate();
-            }
-
-            // 4. Atualiza registro do estoque no banco
-            try (PreparedStatement stmtEstoque = conn.prepareStatement(sqlUpdateEstoque)) {
-                stmtEstoque.setInt(1, medicamento.getQuantidadeEstoque());
-                stmtEstoque.setInt(2, medicamento.getId());
-                stmtEstoque.executeUpdate();
-            }
-
-            // 5. Agendamento contínuo: se as doses pendentes ficarem baixas, programa a próxima
-            agendarProximaDoseSeNecessario(conn, medicamento.getId(), medicamento.getFrequenciaHoras());
-
-            conn.commit(); // Confirmação atômica
-            return medicamento;
-
-        } catch (SQLException | RuntimeException e) {
-            conn.rollback(); // Rollback em caso de erro
-            throw e;
-        } finally {
-            conn.setAutoCommit(autoCommitOriginal);
         }
+
+        // 2. Valida estoque suficiente (RN04)
+        if (!medicamento.reduzirEstoque(medicamento.getQuantidadePorDose())) {
+            throw new IllegalStateException("Estoque insuficiente de '" + medicamento.getNome() +
+                    "' para registrar a tomada. Por favor, reponha o estoque no menu.");
+        }
+
+        // 3. Atualiza registro da dose
+        try (PreparedStatement stmtDose = conn.prepareStatement(sqlUpdateDose)) {
+            setTimestampParam(stmtDose, 1, LocalDateTime.now());
+            stmtDose.setInt(2, doseId);
+            stmtDose.executeUpdate();
+        }
+
+        // 4. Atualiza registro do estoque no banco
+        try (PreparedStatement stmtEstoque = conn.prepareStatement(sqlUpdateEstoque)) {
+            stmtEstoque.setInt(1, medicamento.getQuantidadeEstoque());
+            stmtEstoque.setInt(2, medicamento.getId());
+            stmtEstoque.executeUpdate();
+        }
+
+        // 5. Agendamento contínuo: se as doses pendentes ficarem baixas, programa a próxima
+        agendarProximaDoseSeNecessario(conn, medicamento.getId(), medicamento.getFrequenciaHoras());
+
+        return medicamento;
     }
 
     private void agendarProximaDoseSeNecessario(Connection conn, int medicamentoId, int frequenciaHoras) throws SQLException {

@@ -28,6 +28,6 @@ public class Responsavel extends Usuario {
 
     @Override
     public String toString() {
-        return super.toString() + " | Vínculo Familiar: " + vinculoFamiliar;
+        return super.toString() + " | Vinculo Familiar: " + vinculoFamiliar;
     }
 }

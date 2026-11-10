@@ -47,6 +47,6 @@ public class Paciente extends Usuario {
 
     @Override
     public String toString() {
-        return super.toString() + " | Condição Médica: " + condicaoMedica;
+        return super.toString() + " | Condicao Medica: " + condicaoMedica;
     }
 }

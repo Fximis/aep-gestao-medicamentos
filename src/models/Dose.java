@@ -46,19 +46,19 @@ public class Dose {
 
     /**
      * Retorna o horário previsto em formato amigável para pessoas comuns.
-     * Ex: "Hoje às 14:00", "Amanhã às 08:00" ou "10/11/2026 14:00".
+     * Ex: "Hoje as 14:00", "Amanha as 08:00" ou "10/11/2026 14:00".
      */
     public String getHorarioPrevistoFormatado() {
         if (horarioPrevisto == null) {
-            return "Não informado";
+            return "Nao informado";
         }
         LocalDateTime agora = LocalDateTime.now();
         if (horarioPrevisto.toLocalDate().isEqual(agora.toLocalDate())) {
-            return "Hoje às " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
+            return "Hoje as " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
         } else if (horarioPrevisto.toLocalDate().isEqual(agora.toLocalDate().plusDays(1))) {
-            return "Amanhã às " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
+            return "Amanha as " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
         } else if (horarioPrevisto.toLocalDate().isEqual(agora.toLocalDate().minusDays(1))) {
-            return "Ontem às " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
+            return "Ontem as " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
         }
         return horarioPrevisto.format(FORMATTER);
     }
@@ -68,13 +68,33 @@ public class Dose {
      */
     public String getHorarioConsumoFormatado() {
         if (horarioConsumo == null) {
-            return "Ainda não tomada";
+            return "Ainda nao tomada";
         }
         LocalDateTime agora = LocalDateTime.now();
         if (horarioConsumo.toLocalDate().isEqual(agora.toLocalDate())) {
-            return "Hoje às " + horarioConsumo.format(DateTimeFormatter.ofPattern("HH:mm"));
+            return "Hoje as " + horarioConsumo.format(DateTimeFormatter.ofPattern("HH:mm"));
         }
         return horarioConsumo.format(FORMATTER);
+    }
+
+    /**
+     * Indica se a dose deve ser tomada agora (horario previsto ja atingido ou na proxima hora).
+     */
+    public boolean isDevidaAgora() {
+        if (statusTomado || horarioPrevisto == null) {
+            return false;
+        }
+        return !horarioPrevisto.isAfter(LocalDateTime.now().plusMinutes(60));
+    }
+
+    /**
+     * Indica se a dose esta prevista para a data de hoje.
+     */
+    public boolean isHoje() {
+        if (horarioPrevisto == null) {
+            return false;
+        }
+        return horarioPrevisto.toLocalDate().isEqual(LocalDateTime.now().toLocalDate());
     }
 
     // Getters e Setters

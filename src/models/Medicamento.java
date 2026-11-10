@@ -139,8 +139,8 @@ public class Medicamento {
     @Override
     public String toString() {
         int dias = calcularDiasRestantes();
-        String alerta = verificarAlertaRecompra() ? " [🚨 ALERTA: RECOMPRA NECESSÁRIA]" : " [OK]";
-        return String.format("ID: %d | Medicamento: %-25s | Estoque: %3d un | De %2dh em %2dh (Dose: %d) | Autonomia: %2d dias%s",
+        String alerta = verificarAlertaRecompra() ? " [! ALERTA: RECOMPRA NECESSARIA]" : " [OK]";
+        return String.format("ID: %d | Medicamento: %-25s | Estoque: %3d comp | De %2dh em %2dh (Dose: %d) | Autonomia: %2d dias%s",
                 id, nome, quantidadeEstoque, frequenciaHoras, frequenciaHoras, quantidadePorDose, dias, alerta);
     }
 }

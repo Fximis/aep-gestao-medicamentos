@@ -49,7 +49,7 @@ public class DatabaseConnection {
         } catch (ClassNotFoundException | SQLException e) {
             if (preferSQLite == null) {
                 preferSQLite = true;
-                System.out.println("[BD AVISO] Servidor MySQL local não detectado.");
+                System.out.println("[BD AVISO] Servidor MySQL local nao detectado.");
                 System.out.println("[BD INFO] Ativando Banco de Dados Relacional SQLite ('database/gestao_medicamentos.db')...");
             }
             return conectarSQLite();
@@ -117,21 +117,48 @@ public class DatabaseConnection {
             var rs = stmt.executeQuery("SELECT COUNT(*) AS total FROM usuario;");
             if (rs.next() && rs.getInt("total") == 0) {
                 stmt.executeUpdate("INSERT INTO usuario (id, nome, email, senha, tipo, condicao_medica, vinculo_familiar) VALUES " +
-                        "(1, 'João da Silva', 'joao@email.com', '123456', 'PACIENTE', 'Hipertensão e Diabetes Tipo 2', NULL), " +
+                        "(1, 'Joao da Silva', 'joao@email.com', '123456', 'PACIENTE', 'Hipertensao e Diabetes Tipo 2', NULL), " +
                         "(2, 'Maria Silva Santos', 'maria@email.com', '123456', 'RESPONSAVEL', NULL, 'Filha e Cuidadora');");
 
                 stmt.executeUpdate("INSERT INTO medicamento (id, usuario_id, nome, quantidade_estoque, frequencia_horas, quantidade_por_dose) VALUES " +
-                        "(101, 1, 'Losartana Potássica 50mg', 10, 12, 1), " +
+                        "(101, 1, 'Losartana Potassica 50mg', 10, 12, 1), " +
                         "(102, 1, 'Cloridrato de Metformina 850mg', 60, 8, 1);");
 
-                stmt.executeUpdate("INSERT INTO dose (id, medicamento_id, horario_previsto, horario_consumo, status_tomado) VALUES " +
-                        "(1001, 101, datetime('now', '-2 hours'), NULL, 0), " +
-                        "(1002, 101, datetime('now', '+10 hours'), NULL, 0), " +
-                        "(1003, 102, datetime('now', '-1 hours'), NULL, 0), " +
-                        "(1004, 102, datetime('now', '+7 hours'), NULL, 0);");
+                java.time.LocalDateTime agora = java.time.LocalDateTime.now();
+                java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                String d1 = agora.minusMinutes(30).format(fmt);
+                String d2 = agora.plusHours(11).plusMinutes(30).format(fmt);
+                String d3 = agora.minusMinutes(15).format(fmt);
+                String d4 = agora.plusHours(7).plusMinutes(45).format(fmt);
+                String d5 = agora.plusHours(15).plusMinutes(45).format(fmt);
+
+                stmt.executeUpdate(String.format(
+                        "INSERT INTO dose (id, medicamento_id, horario_previsto, horario_consumo, status_tomado) VALUES " +
+                        "(1001, 101, '%s', NULL, 0), " +
+                        "(1002, 101, '%s', NULL, 0), " +
+                        "(1003, 102, '%s', NULL, 0), " +
+                        "(1004, 102, '%s', NULL, 0), " +
+                        "(1005, 102, '%s', NULL, 0);",
+                        d1, d2, d3, d4, d5));
             }
         } catch (SQLException e) {
             System.err.println("[BD ERRO] Falha ao inicializar tabelas: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Reinicializa o banco SQLite com a carga limpa de demonstracao da AEP.
+     */
+    public static synchronized void reiniciarBaseDemonstracao() {
+        File dbFile = new File("database/gestao_medicamentos.db");
+        if (dbFile.exists()) {
+            dbFile.delete();
+        }
+        schemaInicializado = false;
+        try (Connection conn = conectarSQLite()) {
+            // Recria e popula
+        } catch (SQLException e) {
+            System.err.println("[BD ERRO] Falha ao reiniciar base: " + e.getMessage());
         }
     }
 

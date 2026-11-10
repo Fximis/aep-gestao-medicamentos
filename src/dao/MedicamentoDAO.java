@@ -142,14 +142,24 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
         String sqlMed = "DELETE FROM medicamento WHERE id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection()) {
-            // Remove as doses associadas para garantir integridade mesmo sem cascade ativo
-            try (PreparedStatement stmtDoses = conn.prepareStatement(sqlDoses)) {
-                stmtDoses.setInt(1, id);
-                stmtDoses.executeUpdate();
-            }
-            try (PreparedStatement stmtMed = conn.prepareStatement(sqlMed)) {
-                stmtMed.setInt(1, id);
-                stmtMed.executeUpdate();
+            boolean autoCommitOriginal = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try {
+                // Remove as doses associadas para garantir integridade referencial com ACID
+                try (PreparedStatement stmtDoses = conn.prepareStatement(sqlDoses)) {
+                    stmtDoses.setInt(1, id);
+                    stmtDoses.executeUpdate();
+                }
+                try (PreparedStatement stmtMed = conn.prepareStatement(sqlMed)) {
+                    stmtMed.setInt(1, id);
+                    stmtMed.executeUpdate();
+                }
+                conn.commit();
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(autoCommitOriginal);
             }
         }
     }

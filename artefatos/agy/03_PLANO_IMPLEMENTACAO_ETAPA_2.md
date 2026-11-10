@@ -179,10 +179,12 @@ aep-gestao-medicamentos/
 
 **Diretrizes de Usabilidade e UX Humana:**
 - [x] **Dashboard de Abertura:** Apresenta na largada o que realmente importa (doses para tomar agora e remédios com estoque acabando $\le 5$ dias).
-- [x] **Seleção Direta de Dose:** O paciente não precisa saber IDs técnicos de banco; o sistema enumera os remédios pendentes `[1]`, `[2]...` e ele apenas escolhe o que tomou.
-- [x] **Reabastecimento Intuitivo:** Opção de adicionar comprimidos de uma caixa nova comprada ($+30$) ou informar contagem conferida.
-- [x] **Isolamento de Jargões Acadêmicos:** Diretrizes da banca consolidadas no item `[8]`, mantendo o fluxo do usuário 100% natural e acolhedor.
-- [x] **Resiliência a Entradas:** Tratamento de tipos com validação para entradas não numéricas e limites de negócio.
+- [x] **Seleção Direta e Tomada em Lote:** O paciente não precisa saber IDs técnicos de banco; o sistema enumera os remédios devidos agora (`[1]`, `[2]...`) e oferece a opção `[T]` para tomar todos os remédios do horário juntos em uma única transação atômica ACID.
+- [x] **Antecipação com Consentimento:** Quando o paciente já tomou todas as doses do horário, o sistema confirma o status em dia e permite antecipar a próxima dose com consentimento explícito.
+- [x] **Reabastecimento Intuitivo:** Opção de adicionar comprimidos de uma caixa nova comprada ($+30$) ou informar contagem física conferida no armário.
+- [x] **Isolamento de Jargões Acadêmicos:** Diretrizes da banca consolidadas discretamente no item `[8]`, mantendo o fluxo do usuário 100% natural e acolhedor.
+- [x] **Resiliência a Entradas e Loop de Validação:** Tratamento defensivo em loop para entradas de texto, números negativos e opções inválidas, impedindo qualquer encerramento abrupto do aplicativo (`NoSuchElementException`).
+- [x] **Compatibilidade Universal de Terminal:** Renderização em caracteres universais ASCII (`[OK]`, `[!]`, `[+]`, `[-]`, `[ALERTA]`), eliminando corrupção de acentuação e emojis no console Windows (PowerShell/CMD).
 
 ---
 
