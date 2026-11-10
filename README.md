@@ -221,33 +221,30 @@ mysql -u root -p < database/schema.sql
 No terminal (PowerShell ou CMD) na raiz do projeto:
 ```powershell
 # Windows (PowerShell / CMD):
-javac -encoding UTF-8 -cp "lib/*;src" -d bin src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/Main.java
+javac -encoding UTF-8 -cp "lib/*;src" -d bin src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/views/gui/*.java src/Main.java
 ```
 *(No Linux / macOS, substitua o separador `;` por `:`: `javac -cp "lib/*:src" ...`)*
 
 ### 4. Execução da Aplicação
+
+Por padrão, a aplicação inicia a **Interface Gráfica Desktop (GUI em Java Swing)**:
 ```powershell
-# Windows:
+# Execução Padrão (Interface Gráfica Desktop):
 java -cp "bin;lib/*" Main
 
-# Linux / macOS:
-java -cp "bin:lib/*" Main
+# Execução Alternativa em Modo Terminal (CLI):
+java -cp "bin;lib/*" Main --cli
 ```
 
-### 5. Guia de Uso da Aplicação (UX Humanizada e Rastreabilidade Acadêmica)
+### 5. Guia de Uso da Interface Gráfica (Desktop GUI)
 
-A interface do terminal foi desenvolvida com foco no **usuário real** (paciente idoso, pessoa em tratamento contínuo e cuidador familiar), evitando jargões técnicos no fluxo principal sem abrir mão do rigor de engenharia:
+A aplicação desktop foi projetada com visual moderno, acessível e humanizado, estruturada em abas:
 
-* **Dashboard de Resumo do Dia (Automático no Início):** Ao abrir o sistema, o paciente visualiza imediatamente se há remédios pendentes para tomar no momento e alertas destacados de quais medicamentos estão em nível crítico de recompra ($\le 5$ dias).
-* **Opção [1] Tomar Medicamento Agora:** O paciente vê a lista amigável de remédios agendados para este momento (`[1]`, `[2]...`), podendo confirmar individualmente ou tomar todas as doses devidas de uma vez só com o atalho `[T]`. O sistema executa a dedução atômica no banco com transação ACID, recalculando a autonomia e alertando a família se o estoque atingir a margem de 5 dias. Caso todas as doses do horário já tenham sido tomadas, o sistema informa a próxima dose agendada e permite antecipar com confirmação.
-* **Opção [2] Minha Rotina de Remédios:** Exibe a agenda organizada em seções claras: remédios para tomar agora, próximas doses de hoje, programação para os próximos dias e histórico recente de doses tomadas com data/hora formatada.
-* **Opção [3] Meus Medicamentos e Estoque:** Exibe a tabela organizada dos remédios cadastrados, posologia, estoque físico, autonomia estimada e status de segurança (*Read* do CRUD).
-* **Opção [4] Repor Estoque (Chegou Caixinha Nova!):** Permite adicionar facilmente os comprimidos de caixas compradas na farmácia (ex: $+30$ comprimidos) ou atualizar a contagem física conferida no armário (*RF07 / RN07*).
-* **Opção [5] Cadastrar Novo Tratamento:** Formulário guiado e tolerante a falhas para cadastrar novo remédio receitado pelo médico (*Create* do CRUD) e agendamento automático das doses futuras na rotina diária.
-* **Opção [6] Gerenciar Medicamentos:** Permite atualizar posologia/frequência (*Update*) ou registrar encerramento de tratamento por alta médica (*Delete* com integridade referencial em cascata e transação atômica).
-* **Opção [7] Espaço da Família / Visão do Cuidador:** Painel dedicado à supervisão remota (*RF06 / RN08*), permitindo que cuidadores e filhos acompanhem a adesão (doses tomadas e pendentes de hoje) e os medicamentos em nível crítico de recompra.
-* **Opção [8] Informações Técnicas e Diretrizes da AEP:** Módulo reservado para a **Banca Avaliadora**, exibindo em uma única tela a comprovação formal de todos os critérios da Rubrica (POO com Classe Abstrata, Interface, Herança e Polimorfismo `@Override`, Persistência JDBC com transações ACID, operações completas de CRUD e matriz de requisitos).
-* **Resiliência e Compatibilidade de Terminal:** Validação em loop de entradas numéricas (impede encerramento abrupto em caso de digitação incorreta) e uso de caracteres universais ASCII (`[OK]`, `[!]`, `[+]`, `[-]`) que evitam qualquer distorção visual em consoles Windows (PowerShell/CMD).
+* **Cabeçalho Informativo:** Identifica o paciente e o cuidador familiar em tempo real, com alertas imediatos de doses pendentes e aviso crítico se houver remédios com estoque $\le 5$ dias.
+* **Aba 🕒 Minha Rotina (Doses):** Tabela visual com os horários programados. Permite confirmar a tomada de uma dose selecionada ou executar a baixa de todas as doses devidas em lote (`⚡ Tomar Todas as Doses Agora`). Ao atingir a margem de 5 dias, um popup de alerta de recompra é emitido.
+* **Aba 💊 Meus Medicamentos & Estoque:** Painel central de gestão de medicamentos (*CRUD Completo*), com cálculo dinâmico de autonomia em dias, destaque visual em vermelho para itens em risco de desabastecimento, botões para cadastro, edição de dados, reposição rápida de estoque (novas caixas) e exclusão com diálogo de confirmação.
+* **Aba 👨‍👩‍👧 Espaço da Família / Cuidador:** Dashboard de acompanhamento familiar (*RF06 / RN08*) com barra de progresso gráfica de adesão diária (doses tomadas vs pendentes hoje).
+* **Aba ⚙️ Diretrizes Técnicas (Banca AEP):** Módulo dedicado à avaliação acadêmica, exibindo a comprovação formal de todos os requisitos do edital (conexão JDBC ativa, scripts DDL, integridade referencial, classes abstratas, interfaces genéricas e polimorfismo via `@Override`).
 
 ---
 

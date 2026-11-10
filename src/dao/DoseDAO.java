@@ -58,6 +58,33 @@ public class DoseDAO {
     }
 
     /**
+     * Lista todas as doses de um paciente (pendentes e já tomadas), ordenadas por horário.
+     */
+    public List<Dose> listarPorUsuario(int usuarioId) throws SQLException {
+        String sql = "SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento, " +
+                "d.horario_previsto, d.horario_consumo, d.status_tomado " +
+                "FROM dose d " +
+                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
+                "WHERE m.usuario_id = ? " +
+                "ORDER BY d.horario_previsto DESC";
+
+        List<Dose> lista = new ArrayList<>();
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, usuarioId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(instanciarDose(rs));
+                }
+            }
+        }
+        return lista;
+    }
+
+    /**
      * Lista todas as doses pendentes de um paciente (RF02 - Lembretes).
      */
     public List<Dose> listarPendentesPorPaciente(int usuarioId) throws SQLException {

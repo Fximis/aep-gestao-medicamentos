@@ -1,4 +1,4 @@
-# ADR-003: Interface CLI Humanizada (Cuidado Diário) com Painel Técnico Reservado
+# ADR-003: Interface Gráfica Desktop (Java Swing GUI) Humanizada com Painel Técnico Integrado
 
 **Status:** Vigente  
 **Data:** 2026-11-10  
@@ -6,22 +6,25 @@
 ---
 
 ## Contexto
-Na 1ª Entrega, a etapa de Descoberta apontou como público-alvo prioritário idosos, cuidadores e pessoas com rotinas intensas de medicação contínua. Paralelamente, o edital da instituição esclareceu nas Orientações Finais que:
-1. *"Não será cobrada interface gráfica avançada (ETI). A nota foca exclusivamente em: O projeto está fundamentado tecnicamente? O código funciona? Ele é orientado a objetos? Ele salva no banco?"*.
-2. As primeiras versões de consoles CLI tendiam a rotular as opções de menu utilizando jargões estritamente acadêmicos (`[1] Create`, `[2] Read`, `[9] Polimorfismo`), o que contradiz o propósito de valor centrado no usuário real.
+Na 1ª Entrega, a etapa de Descoberta apontou como público-alvo prioritário idosos, cuidadores familiares e pessoas com rotinas intensas de medicação contínua. Paralelamente, o edital da instituição exigiu um sistema funcional e integrado para a 2ª fase.
+
+A utilização exclusiva de terminal de linha de comando (CLI) impõe uma barreira de usabilidade para usuários leigos e idosos (público-alvo primário do ODS 3 da ONU). Uma aplicação desktop gráfica acessível, com botões claros, alertas visuais coloridos e tabelas responsivas atende de forma superior aos Requisitos Não Funcionais de Usabilidade (**RNF01**).
 
 ## Decisão
-Adotar uma interface de linha de comando (CLI) baseada em terminal console (`ConsoleView.java`) com os seguintes princípios de design:
-1. **Linguagem Natural e Acolhedora:** Menus estruturados sob a perspectiva da rotina diária (*"Tomar Medicamento Agora"*, *"Minha Rotina de Remédios"*, *"Repor Estoque"* e *"Espaço da Família"*).
-2. **Dashboard Imediato no Topo:** A tela principal informa logo na inicialização se há doses atrasadas ou pendentes para o momento atual e destaca em alerta visual caso haja medicamentos com estoque crítico ($\le 5$ dias de autonomia).
-3. **Tomada de Doses Eficiente (Suporte a Lote `[T]`):** Permite confirmação de doses específicas ou a confirmação de todos os remédios daquele horário em uma única ação transacional.
-4. **Painel Técnico Reservado para a Banca:** Opção dedicada `[8]` que executa testes de reflexão e itera sobre a coleção polimórfica `List<Usuario>` comprovando o `@Override` do método `obterTipo()`, detalhes de conexão JDBC e estrutura do banco, sem poluir a experiência da pessoa comum.
-5. **Compatibilidade Universal de Terminal:** Utilização exclusiva de caracteres universais ASCII e codificação UTF-8, prevenindo caracteres truncados (*mojibake*) em ambientes Windows (PowerShell / Prompt de Comando).
+Implementar uma interface gráfica desktop interativa nativa utilizando **Java Swing** (`javax.swing.*` e `java.awt.*`), padronizada sob o nome **CUIDADO DIÁRIO**:
+1. **Padrão Nativo do Sistema:** Aplicação do System Look and Feel (`UIManager.getSystemLookAndFeelClassName()`), integrando-se visualmente ao sistema operacional (Windows/Linux/macOS) sem dependências externas pesadas.
+2. **Organização por Abas Temáticas:**
+   - **Aba 1 (🕒 Minha Rotina - Doses):** Exibe a lista de horários de hoje com destaque visual para doses pendentes e botões para confirmação individual ou em lote (`⚡ Tomar Todas as Doses Agora`).
+   - **Aba 2 (💊 Meus Medicamentos & Estoque):** Tabela completa de controle com autonomia calculada em dias, status de alerta e botões para novo cadastro, edição, reposição de caixas novas e exclusão com diálogo de confirmação.
+   - **Aba 3 (👨‍👩‍👧 Espaço da Família / Cuidador):** Dashboard com barra de progresso visual de adesão diária e dados do acompanhante (RF06 / RN08).
+   - **Aba 4 (⚙️ Diretrizes Técnicas - Banca AEP):** Painel reservado para a banca avaliadora inspecionar o status da conexão JDBC ativa, integridade referencial do DDL e chamadas polimórficas de POO com `@Override`.
+3. **Alertas Visuais Proativos:** Popups modais (`JOptionPane`) disparados automaticamente sempre que a confirmação de uma dose reduz o estoque a $\le 5$ dias de autonomia (RF05 / RN03).
+4. **Resiliência e Fallback:** Preservação do modo console CLI como alternativa via argumento `--cli` para servidores ou execuções sem display gráfico.
 
 ## Consequências
 * **Positivas:**
-  * Experiência de uso intuitiva, realista e aderente à proposta de valor do projeto.
-  * Execução rápida, livre de falhas de renderização de janelas gráficas em diferentes resoluções ou sistemas operacionais.
-  * Atendimento duplo: satisfaz os requisitos de usabilidade para o usuário leigo e fornece acesso imediato às evidências de conformidade para o professor.
+  * Interface visual completa, intuitiva e amigável para qualquer pessoa comum ou idoso.
+  * Execução instantânea utilizando a biblioteca padrão do Java SE 21, sem necessidade de módulos JavaFX adicionais ou dependências complexas.
+  * Rastreabilidade total: a banca avaliadora pode interagir graficamente com todos os requisitos de POO, CRUD e Persistência através de uma interface limpa.
 * **Negativas / Limitações:**
-  * Ausência de interface visual com botões e formulários gráficos (opção deliberada e amparada pelo item 1 das orientações finais do edital da AEP).
+  * O código da camada View passa a gerenciar componentes Swing (`JTable`, `DefaultTableModel`, diálogos modais), o que é devidamente isolado no pacote `views.gui`.

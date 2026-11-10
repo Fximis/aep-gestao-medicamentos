@@ -10,4 +10,4 @@ Este diretório registra as decisões arquiteturais fundamentais adotadas no pro
 | :---: | :--- | :---: | :---: |
 | **[ADR-001](2026-11-10-adr-001-persistencia-hibrida-jdbc-mysql-sqlite.md)** | Persistência Relacional Híbrida via JDBC (MySQL com Fallback SQLite) | 2026-11-10 | Vigente |
 | **[ADR-002](2026-11-10-adr-002-padrao-dao-e-interface-generica.md)** | Camada de Acesso a Dados com Padrão DAO e Interface Genérica | 2026-11-10 | Vigente |
-| **[ADR-003](2026-11-10-adr-003-interface-cli-humanizada-e-painel-tecnico.md)** | Interface CLI Humanizada (Cuidado Diário) com Painel Técnico Reservado | 2026-11-10 | Vigente |
+| **[ADR-003](2026-11-10-adr-003-interface-cli-humanizada-e-painel-tecnico.md)** | Interface Gráfica Desktop (Java Swing GUI) Humanizada com Painel Técnico Integrado | 2026-11-10 | Vigente |

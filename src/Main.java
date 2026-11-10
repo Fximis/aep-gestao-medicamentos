@@ -8,7 +8,11 @@ import models.Paciente;
 import models.Responsavel;
 import models.Usuario;
 import views.ConsoleView;
+import views.gui.MainWindow;
 
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import java.awt.GraphicsEnvironment;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,7 +38,27 @@ public class Main {
             return;
         }
 
-        // 2. Carrega Usuario Padrao para a Sessao (Paciente Joao da Silva e Cuidadora Maria)
+        // 2. Abre a Interface Grafica Desktop (GUI) por padrao
+        boolean modoConsole = false;
+        for (String arg : args) {
+            if ("--cli".equalsIgnoreCase(arg)) {
+                modoConsole = true;
+                break;
+            }
+        }
+
+        if (!modoConsole && !GraphicsEnvironment.isHeadless()) {
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                } catch (Exception ignored) {
+                }
+                new MainWindow().setVisible(true);
+            });
+            return;
+        }
+
+        // 3. Fallback: Carrega Usuario Padrao para a Sessao Console CLI
         Paciente pacienteAtivo = carregarPacientePadrao();
         Responsavel responsavelPadrao = carregarResponsavelPadrao();
 
