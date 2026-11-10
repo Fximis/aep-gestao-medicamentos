@@ -201,6 +201,50 @@ erDiagram
 
 ---
 
+## 💻 Como Executar a Aplicação (2ª Entrega — Sistemas Operacionais)
+
+O projeto foi construído utilizando **Java Standard Edition (SE)** com **JDBC puro**, sem necessidade de instalação de ferramentas adicionais de build (como Maven ou Gradle). Os drivers JDBC já se encontram versionados na pasta `lib/`.
+
+### 1. Pré-Requisitos
+* **Java Development Kit (JDK):** Versão 21 LTS (ou superior).
+* **Banco de Dados Relacional:**
+  * **MySQL 8.x** (porta 3306, usuário `root`, senha em branco — padrão do Laragon/XAMPP).
+  * *Observação de Resiliência:* Se o servidor MySQL não estiver em execução na máquina do avaliador, o sistema ativa automaticamente a conexão JDBC via **SQLite** (`database/gestao_medicamentos.db`), garantindo execução imediata sem falhas.
+
+### 2. Configuração do Banco MySQL (Opcional)
+Se desejar executar utilizando o MySQL:
+```powershell
+mysql -u root -p < database/schema.sql
+```
+
+### 3. Compilação do Código-Fonte
+No terminal (PowerShell ou CMD) na raiz do projeto:
+```powershell
+# Windows (PowerShell / CMD):
+javac -encoding UTF-8 -cp "lib/*;src" -d bin src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/Main.java
+```
+*(No Linux / macOS, substitua o separador `;` por `:`: `javac -cp "lib/*:src" ...`)*
+
+### 4. Execução da Aplicação
+```powershell
+# Windows:
+java -cp "bin;lib/*" Main
+
+# Linux / macOS:
+java -cp "bin:lib/*" Main
+```
+
+### 5. Guia Rápido de Testes no Menu Interativo
+* **Opção [1] Create:** Cadastre um novo medicamento informando estoque e frequência.
+* **Opção [2] Read:** Visualize a lista com o cálculo dinâmico de autonomia e status de alerta.
+* **Opção [3] Update:** Altere dados do medicamento.
+* **Opção [4] Update de Estoque:** Faça um ajuste manual de estoque para simular nova compra.
+* **Opção [5] Delete:** Exclua o medicamento e suas doses associadas.
+* **Opção [7] Confirmar Dose (Alerta de 5 dias):** Confirme a dose #1001 (Losartana). O estoque cairá para 9 comprimidos (4 dias de autonomia), disparando o **Alerta Proativo de Recompra**.
+* **Opção [9] Comprovação de POO:** Itera sobre a coleção polimórfica `List<Usuario>` comprovando o método sobrescrito `@Override obterTipo()`.
+
+---
+
 ## 📅 Cronograma de Execução da AEP
 
 | Data | Atividade | Responsável | Status |

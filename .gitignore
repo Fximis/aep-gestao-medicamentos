@@ -1,0 +1,20 @@
+# Arquivos de Compilação Java
+bin/
+*.class
+
+# Banco de dados local gerado em tempo de execução (SQLite)
+database/*.db
+*.db
+
+# Configurações de IDEs e Editores
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Arquivos do Sistema Operacional
+Thumbs.db
+Desktop.ini
+.DS_Store

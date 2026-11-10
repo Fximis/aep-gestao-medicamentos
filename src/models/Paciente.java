@@ -3,9 +3,14 @@ package models;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Subclasse representando o Paciente que realiza o tratamento contínuo.
+ * Demonstra Herança (extends Usuario) e Polimorfismo (@Override obterTipo).
+ */
 public class Paciente extends Usuario {
+
     private String condicaoMedica;
-    private List<Medicamento> medicamentos; // Composição 1:N
+    private List<Medicamento> medicamentos;
 
     public Paciente(int id, String nome, String email, String senha, String condicaoMedica) {
         super(id, nome, email, senha);
@@ -19,10 +24,29 @@ public class Paciente extends Usuario {
     }
 
     public void adicionarMedicamento(Medicamento medicamento) {
-        this.medicamentos.add(medicamento);
+        if (medicamento != null) {
+            this.medicamentos.add(medicamento);
+        }
     }
 
-    public void confirmarDose(Dose dose) {
-        dose.marcarComoTomada();
+    public String getCondicaoMedica() {
+        return condicaoMedica;
+    }
+
+    public void setCondicaoMedica(String condicaoMedica) {
+        this.condicaoMedica = condicaoMedica;
+    }
+
+    public List<Medicamento> getMedicamentos() {
+        return medicamentos;
+    }
+
+    public void setMedicamentos(List<Medicamento> medicamentos) {
+        this.medicamentos = medicamentos;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " | Condição Médica: " + condicaoMedica;
     }
 }

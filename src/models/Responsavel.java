@@ -1,6 +1,11 @@
 package models;
 
+/**
+ * Subclasse representando o Responsável/Cuidador familiar.
+ * Demonstra Herança (extends Usuario) e Polimorfismo (@Override obterTipo).
+ */
 public class Responsavel extends Usuario {
+
     private String vinculoFamiliar;
 
     public Responsavel(int id, String nome, String email, String senha, String vinculoFamiliar) {
@@ -13,8 +18,16 @@ public class Responsavel extends Usuario {
         return "RESPONSAVEL";
     }
 
-    public void monitorarEstoque(Paciente paciente) {
-        System.out.println("Monitorando estoque do paciente: " + paciente.getNome());
-        // Lógica para listar os medicamentos e níveis de estoque do paciente associado.
+    public String getVinculoFamiliar() {
+        return vinculoFamiliar;
+    }
+
+    public void setVinculoFamiliar(String vinculoFamiliar) {
+        this.vinculoFamiliar = vinculoFamiliar;
+    }
+
+    @Override
+    public String toString() {
+        return super.toString() + " | Vínculo Familiar: " + vinculoFamiliar;
     }
 }
