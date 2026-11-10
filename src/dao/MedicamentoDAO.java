@@ -138,13 +138,19 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
 
     @Override
     public void excluir(int id) throws SQLException {
-        String sql = "DELETE FROM medicamento WHERE id = ?";
+        String sqlDoses = "DELETE FROM dose WHERE medicamento_id = ?";
+        String sqlMed = "DELETE FROM medicamento WHERE id = ?";
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, id);
-            stmt.executeUpdate();
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            // Remove as doses associadas para garantir integridade mesmo sem cascade ativo
+            try (PreparedStatement stmtDoses = conn.prepareStatement(sqlDoses)) {
+                stmtDoses.setInt(1, id);
+                stmtDoses.executeUpdate();
+            }
+            try (PreparedStatement stmtMed = conn.prepareStatement(sqlMed)) {
+                stmtMed.setInt(1, id);
+                stmtMed.executeUpdate();
+            }
         }
     }
 

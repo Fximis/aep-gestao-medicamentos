@@ -234,14 +234,19 @@ java -cp "bin;lib/*" Main
 java -cp "bin:lib/*" Main
 ```
 
-### 5. Guia Rápido de Testes no Menu Interativo
-* **Opção [1] Create:** Cadastre um novo medicamento informando estoque e frequência.
-* **Opção [2] Read:** Visualize a lista com o cálculo dinâmico de autonomia e status de alerta.
-* **Opção [3] Update:** Altere dados do medicamento.
-* **Opção [4] Update de Estoque:** Faça um ajuste manual de estoque para simular nova compra.
-* **Opção [5] Delete:** Exclua o medicamento e suas doses associadas.
-* **Opção [7] Confirmar Dose (Alerta de 5 dias):** Confirme a dose #1001 (Losartana). O estoque cairá para 9 comprimidos (4 dias de autonomia), disparando o **Alerta Proativo de Recompra**.
-* **Opção [9] Comprovação de POO:** Itera sobre a coleção polimórfica `List<Usuario>` comprovando o método sobrescrito `@Override obterTipo()`.
+### 5. Guia de Uso da Aplicação (UX Humanizada e Rastreabilidade Acadêmica)
+
+A interface do terminal foi desenvolvida com foco no **usuário real** (paciente idoso, pessoa em tratamento contínuo e cuidador familiar), evitando jargões técnicos no fluxo principal sem abrir mão do rigor de engenharia:
+
+* **Dashboard de Resumo do Dia (Automático no Início):** Ao abrir o sistema, o paciente visualiza imediatamente se há remédios pendentes para tomar no momento e alertas destacados de quais medicamentos estão em nível crítico de recompra ($\le 5$ dias).
+* **Opção [1] Tomar Medicamento Agora:** O paciente vê a lista amigável de remédios agendados (`[1]`, `[2]...`), escolhe o número do remédio tomado e o sistema executa a dedução atômica no banco, informando o novo estoque, autonomia recalculada e disparando o alerta de 5 dias caso atinja a margem.
+* **Opção [2] Minha Rotina de Remédios:** Exibe a agenda do dia com horários formatados de forma humana (*"Hoje às 14:00"*, *"Amanhã às 08:00"*) e o histórico recente de confirmações.
+* **Opção [3] Meus Medicamentos e Estoque:** Exibe a tabela organizada dos remédios cadastrados, frequência, estoque físico, autonomia estimada e status de segurança (*Read* do CRUD).
+* **Opção [4] Repor Estoque (Chegou Caixinha Nova!):** Permite adicionar facilmente os comprimidos de uma nova caixa comprada na farmácia (ex: $+30$ comprimidos) ou atualizar a contagem física conferida (*RF07 / RN07*).
+* **Opção [5] Cadastrar Novo Tratamento:** Formulário guiado com perguntas simples para cadastrar novo remédio receitado pelo médico (*Create* do CRUD) e agendamento automático das doses futuras.
+* **Opção [6] Gerenciar Medicamentos:** Permite atualizar posologia/frequência (*Update*) ou registrar encerramento de tratamento por alta médica (*Delete* com integridade referencial).
+* **Opção [7] Espaço da Família / Visão do Cuidador:** Painel dedicado à supervisão remota (*RF06 / RN08*), permitindo que cuidadores e filhos acompanhem a adesão e o estoque dos pais.
+* **Opção [8] Informações Técnicas e Diretrizes da AEP:** Módulo reservado para a **Banca Avaliadora**, exibindo em uma única tela a comprovação formal de todos os critérios da Rubrica (POO com Classe Abstrata, Interface, Herança e Polimorfismo `@Override`, Persistência JDBC com transações ACID, operações completas de CRUD e matriz de requisitos).
 
 ---
 

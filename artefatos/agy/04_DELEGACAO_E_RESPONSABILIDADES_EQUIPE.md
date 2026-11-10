@@ -40,12 +40,14 @@ git config user.email "email-cadastrado-no-github@exemplo.com"
 
 ## 3. Roteiro de Demonstração para a Banca / Professor
 
-Caso o professor solicite apresentação ou arguição do código:
-1. **Mostrar o script SQL:** Apresentar as tabelas em `database/schema.sql` com PK, FK e constraints.
-2. **Mostrar a Conexão JDBC:** Apresentar `src/config/DatabaseConnection.java` provando que não há simulação em memória.
-3. **Demonstrar os Pilares de POO:**
-   - Abstração: `Usuario.java` (classe abstrata) e `GenericDAO.java` (interface).
-   - Herança: `Paciente extends Usuario` e `Responsavel extends Usuario`.
-   - Polimorfismo: `obterTipo()` sobrescrito com `@Override` retornando comportamentos distintos.
-4. **Demonstrar o CRUD:** Executar o menu criando um medicamento, listando com o cálculo de dias, alterando o estoque e excluindo.
-5. **Demonstrar a Regra dos 5 Dias:** Confirmar doses até o estoque atingir $\le 5$ dias de autonomia e mostrar o alerta proativo sendo disparado no terminal.
+O sistema foi preparado tanto para uma pessoa comum (fluxo fluido de [1] a [7]) quanto para inspeção técnica rigorosa da banca:
+1. **Opção [8] do Menu (Atalho para a Banca):** Pressione `8` no menu principal. O sistema exibirá uma tela consolidada comprovando em tempo real:
+   - Os 4 pilares de POO (com iteração polimórfica e anotação `@Override`).
+   - Persistência em banco de dados relacional (conexão JDBC ativa e transações ACID).
+   - CRUD completo operando sobre a entidade `Medicamento`.
+   - Rastreabilidade de todos os requisitos funcionais e regras de negócio da 1ª entrega.
+2. **Mostrar o script SQL:** Apresentar as tabelas em `database/schema.sql` com PK, FK e constraints de integridade referencial.
+3. **Demonstrar a Usabilidade Humana:**
+   - Mostrar o **Dashboard do Dia** na inicialização (alertas prioritários imediatos).
+   - Confirmar uma dose com **Opção [1]**: o paciente seleciona o remédio da lista e a baixa é realizada no estoque físico.
+   - Reabastecer o estoque com **Opção [4]** adicionando uma nova caixa comprada na farmácia ($+30$ comprimidos) e verificando a autonomia subir dinamicamente.

@@ -152,29 +152,37 @@ aep-gestao-medicamentos/
 - `src/views/ConsoleView.java`
 - `src/Main.java`
 
-**Estrutura do Menu do Terminal:**
+**Estrutura da Interface Focada em UX Humanizada (Pessoa Comum / Idoso / Cuidador):**
 ```text
-=====================================================
-  SISTEMA DE GESTÃO DE MEDICAMENTOS CONTÍNUOS (AEP)
-=====================================================
-1. Cadastrar Medicamento (Create)
-2. Listar Medicamentos e Autonomia em Dias (Read)
-3. Atualizar Dados do Medicamento (Update)
-4. Ajustar Manualmente o Estoque (Update de Estoque)
-5. Excluir Medicamento (Delete)
------------------------------------------------------
-6. Agenda de Doses do Paciente (Lembretes)
-7. Confirmar Tomada de Dose (Baixa e Alerta de 5 Dias)
-8. Visão do Cuidador / Responsável (Gestão Familiar)
------------------------------------------------------
-0. Sair do Sistema
-Escolha uma opção: 
+==============================================================================
+            CUIDADO DIARIO -- Gestao Familiar de Remedios
+==============================================================================
+  [PACIENTE] João da Silva                | Condicao: Hipertensão e Diabetes
+  [CUIDADOR] Maria Silva Santos           | Vinculo: Filha e Cuidadora
+------------------------------------------------------------------------------
+  [RESUMO DO SEU DIA -- O que voce precisa saber agora]:
+  [!] Remedios para tomar: 2 dose(s) aguardando voce! (Opcao [1] para tomar)
+  [ALERTA DE RECOMPRA] 'Losartana Potassica 50mg' dura apenas mais 4 dia(s)!
+------------------------------------------------------------------------------
+  [1] Tomar Medicamento Agora (Confirmar Dose)
+  [2] Minha Rotina de Remedios (Lembretes e Horarios de Hoje)
+  [3] Meus Medicamentos e Estoque (Consultar Dias Restantes)
+  [4] Repor Estoque (Chegou Caixinha Nova!)
+  [5] Cadastrar Novo Tratamento / Medicamento
+  [6] Gerenciar Medicamentos (Alterar Dados ou Remover)
+  [7] Espaco da Familia / Visao do Cuidador
+
+  [8] Informacoes Tecnicas e Diretrizes do Sistema (Banca / AEP)
+  [0] Encerrar Aplicativo
+==============================================================================
 ```
 
-**Checklist:**
-- [ ] Implementar loop com tratamento de exceções (evitar que o programa quebre se o usuário digitar uma letra no lugar de um número).
-- [ ] Exibir mensagens coloridas ou com formatação destacada (`[ALERTA DE RECOMPRA]`, `[SUCESSO]`, `[ERRO]`).
-- [ ] Disponibilizar a visualização polimórfica: exibir o usuário ativo e o resultado de `usuario.obterTipo()`.
+**Diretrizes de Usabilidade e UX Humana:**
+- [x] **Dashboard de Abertura:** Apresenta na largada o que realmente importa (doses para tomar agora e remédios com estoque acabando $\le 5$ dias).
+- [x] **Seleção Direta de Dose:** O paciente não precisa saber IDs técnicos de banco; o sistema enumera os remédios pendentes `[1]`, `[2]...` e ele apenas escolhe o que tomou.
+- [x] **Reabastecimento Intuitivo:** Opção de adicionar comprimidos de uma caixa nova comprada ($+30$) ou informar contagem conferida.
+- [x] **Isolamento de Jargões Acadêmicos:** Diretrizes da banca consolidadas no item `[8]`, mantendo o fluxo do usuário 100% natural e acolhedor.
+- [x] **Resiliência a Entradas:** Tratamento de tipos com validação para entradas não numéricas e limites de negócio.
 
 ---
 

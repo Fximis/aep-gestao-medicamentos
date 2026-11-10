@@ -44,6 +44,39 @@ public class Dose {
         this.horarioConsumo = LocalDateTime.now();
     }
 
+    /**
+     * Retorna o horário previsto em formato amigável para pessoas comuns.
+     * Ex: "Hoje às 14:00", "Amanhã às 08:00" ou "10/11/2026 14:00".
+     */
+    public String getHorarioPrevistoFormatado() {
+        if (horarioPrevisto == null) {
+            return "Não informado";
+        }
+        LocalDateTime agora = LocalDateTime.now();
+        if (horarioPrevisto.toLocalDate().isEqual(agora.toLocalDate())) {
+            return "Hoje às " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
+        } else if (horarioPrevisto.toLocalDate().isEqual(agora.toLocalDate().plusDays(1))) {
+            return "Amanhã às " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
+        } else if (horarioPrevisto.toLocalDate().isEqual(agora.toLocalDate().minusDays(1))) {
+            return "Ontem às " + horarioPrevisto.format(DateTimeFormatter.ofPattern("HH:mm"));
+        }
+        return horarioPrevisto.format(FORMATTER);
+    }
+
+    /**
+     * Retorna o horário real de consumo formatado.
+     */
+    public String getHorarioConsumoFormatado() {
+        if (horarioConsumo == null) {
+            return "Ainda não tomada";
+        }
+        LocalDateTime agora = LocalDateTime.now();
+        if (horarioConsumo.toLocalDate().isEqual(agora.toLocalDate())) {
+            return "Hoje às " + horarioConsumo.format(DateTimeFormatter.ofPattern("HH:mm"));
+        }
+        return horarioConsumo.format(FORMATTER);
+    }
+
     // Getters e Setters
     public int getId() {
         return id;

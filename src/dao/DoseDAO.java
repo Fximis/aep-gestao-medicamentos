@@ -112,6 +112,34 @@ public class DoseDAO {
     }
 
     /**
+     * Retorna o histórico recente de doses já consumidas pelo paciente.
+     */
+    public List<Dose> listarHistoricoRecente(int usuarioId, int limite) throws SQLException {
+        String sql = "SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento, " +
+                "d.horario_previsto, d.horario_consumo, d.status_tomado " +
+                "FROM dose d " +
+                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
+                "WHERE m.usuario_id = ? AND d.status_tomado = 1 " +
+                "ORDER BY d.horario_consumo DESC LIMIT ?";
+
+        List<Dose> lista = new ArrayList<>();
+
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, usuarioId);
+            stmt.setInt(2, limite);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(instanciarDose(rs));
+                }
+            }
+        }
+        return lista;
+    }
+
+    /**
      * Executa a confirmação formal da dose tomada com transação atômica (ACID).
      * Deduz a quantidade do estoque físico e recalcula dias restantes (RN01, RN02, RN05, RN06).
      *
@@ -178,6 +206,9 @@ public class DoseDAO {
                 stmtEstoque.executeUpdate();
             }
 
+            // 5. Agendamento contínuo: se as doses pendentes ficarem baixas, programa a próxima
+            agendarProximaDoseSeNecessario(conn, medicamento.getId(), medicamento.getFrequenciaHoras());
+
             conn.commit(); // Confirmação atômica
             return medicamento;
 
@@ -186,6 +217,44 @@ public class DoseDAO {
             throw e;
         } finally {
             conn.setAutoCommit(autoCommitOriginal);
+        }
+    }
+
+    private void agendarProximaDoseSeNecessario(Connection conn, int medicamentoId, int frequenciaHoras) throws SQLException {
+        String sqlCount = "SELECT COUNT(*) FROM dose WHERE medicamento_id = ? AND status_tomado = 0";
+        int pendentes = 0;
+        try (PreparedStatement stmtCount = conn.prepareStatement(sqlCount)) {
+            stmtCount.setInt(1, medicamentoId);
+            try (ResultSet rs = stmtCount.executeQuery()) {
+                if (rs.next()) {
+                    pendentes = rs.getInt(1);
+                }
+            }
+        }
+
+        if (pendentes < 3) {
+            String sqlMax = "SELECT MAX(horario_previsto) FROM dose WHERE medicamento_id = ?";
+            LocalDateTime baseTime = LocalDateTime.now();
+            try (PreparedStatement stmtMax = conn.prepareStatement(sqlMax)) {
+                stmtMax.setInt(1, medicamentoId);
+                try (ResultSet rs = stmtMax.executeQuery()) {
+                    if (rs.next()) {
+                        String maxVal = rs.getString(1);
+                        LocalDateTime maxPrev = parseLocalDateTimeString(maxVal);
+                        if (maxPrev != null && maxPrev.isAfter(baseTime)) {
+                            baseTime = maxPrev;
+                        }
+                    }
+                }
+            }
+
+            LocalDateTime proxima = baseTime.plusHours(frequenciaHoras);
+            String sqlInsert = "INSERT INTO dose (medicamento_id, horario_previsto, horario_consumo, status_tomado) VALUES (?, ?, NULL, 0)";
+            try (PreparedStatement stmtInsert = conn.prepareStatement(sqlInsert)) {
+                stmtInsert.setInt(1, medicamentoId);
+                setTimestampParam(stmtInsert, 2, proxima);
+                stmtInsert.executeUpdate();
+            }
         }
     }
 
@@ -213,6 +282,10 @@ public class DoseDAO {
 
     private LocalDateTime parseLocalDateTime(ResultSet rs, String colName) throws SQLException {
         String val = rs.getString(colName);
+        return parseLocalDateTimeString(val);
+    }
+
+    private LocalDateTime parseLocalDateTimeString(String val) {
         if (val == null || val.trim().isEmpty()) {
             return null;
         }
@@ -226,13 +299,6 @@ public class DoseDAO {
             }
             return LocalDateTime.parse(val);
         } catch (Exception e) {
-            try {
-                Timestamp ts = rs.getTimestamp(colName);
-                if (ts != null) {
-                    return ts.toLocalDateTime();
-                }
-            } catch (Exception ignored) {
-            }
             return null;
         }
     }
