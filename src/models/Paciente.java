@@ -1,6 +1,7 @@
 package models;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -10,12 +11,16 @@ import java.util.List;
 public class Paciente extends Usuario {
 
     private String condicaoMedica;
-    private List<Medicamento> medicamentos;
+    private final List<Medicamento> medicamentos;
 
     public Paciente(int id, String nome, String email, String senha, String condicaoMedica) {
         super(id, nome, email, senha);
         this.condicaoMedica = condicaoMedica;
         this.medicamentos = new ArrayList<>();
+    }
+
+    public Paciente(String nome, String email, String senha, String condicaoMedica) {
+        this(0, nome, email, senha, condicaoMedica);
     }
 
     @Override
@@ -24,9 +29,10 @@ public class Paciente extends Usuario {
     }
 
     public void adicionarMedicamento(Medicamento medicamento) {
-        if (medicamento != null) {
-            this.medicamentos.add(medicamento);
+        if (medicamento == null) {
+            throw new IllegalArgumentException("O medicamento não pode ser nulo.");
         }
+        this.medicamentos.add(medicamento);
     }
 
     public String getCondicaoMedica() {
@@ -38,11 +44,17 @@ public class Paciente extends Usuario {
     }
 
     public List<Medicamento> getMedicamentos() {
-        return medicamentos;
+        // Protege a estrutura da coleção; as entidades mantêm seus próprios setters.
+        return Collections.unmodifiableList(new ArrayList<>(medicamentos));
     }
 
     public void setMedicamentos(List<Medicamento> medicamentos) {
-        this.medicamentos = medicamentos;
+        if (medicamentos == null || medicamentos.stream().anyMatch(m -> m == null)) {
+            throw new IllegalArgumentException("Informe uma lista de medicamentos sem itens nulos.");
+        }
+        List<Medicamento> copia = new ArrayList<>(medicamentos);
+        this.medicamentos.clear();
+        this.medicamentos.addAll(copia);
     }
 
     @Override

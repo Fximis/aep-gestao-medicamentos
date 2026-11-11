@@ -17,7 +17,8 @@ public class ReporEstoqueDialog extends JDialog {
     public ReporEstoqueDialog(Frame parent, Medicamento medicamento) {
         super(parent, "Repor Estoque: " + medicamento.getNome(), true);
 
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(16, 16));
+        getRootPane().setBorder(BorderFactory.createEmptyBorder(16, 16, 10, 16));
 
         JPanel pnlInfo = new JPanel(new GridLayout(3, 1, 5, 5));
         pnlInfo.setBorder(BorderFactory.createEmptyBorder(15, 20, 10, 20));
@@ -34,8 +35,8 @@ public class ReporEstoqueDialog extends JDialog {
         add(pnlInfo, BorderLayout.CENTER);
 
         JPanel pnlBotoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        JButton btnCancelar = new JButton("Cancelar");
-        JButton btnConfirmar = new JButton("Confirmar Reposição");
+        JButton btnCancelar = Tema.botao("Cancelar", false);
+        JButton btnConfirmar = Tema.botao("Confirmar reposição", true);
         btnConfirmar.setFont(btnConfirmar.getFont().deriveFont(Font.BOLD));
 
         btnCancelar.addActionListener(e -> dispose());

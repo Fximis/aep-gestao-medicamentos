@@ -12,8 +12,8 @@ public class Medicamento {
     private int usuarioId;
     private String nome;
     private int quantidadeEstoque;
-    private int frequenciaHoras;
-    private int quantidadePorDose;
+    private int frequenciaHoras = 24;
+    private int quantidadePorDose = 1;
 
     public Medicamento() {
     }
@@ -33,18 +33,15 @@ public class Medicamento {
 
     /**
      * Calcula dinamicamente a autonomia do estoque em dias de tratamento (RN05).
-     * Fórmula: Estoque Atual / ( (24 / Frequência em Horas) * Quantidade por Dose )
+     * Fórmula: (estoque * frequência em horas) / (24 * quantidade por dose).
+     * O valor é derivado a cada consulta, sem cache: alterações no estoque,
+     * na frequência ou na dose já aparecem na próxima consulta (RN05).
+     * Retorna dias completos, descartando a parte fracionária.
      */
     public int calcularDiasRestantes() {
-        if (frequenciaHoras <= 0 || quantidadePorDose <= 0) {
-            return 0;
-        }
-        double dosesPorDia = 24.0 / frequenciaHoras;
-        double consumoDiario = dosesPorDia * quantidadePorDose;
-        if (consumoDiario <= 0) {
-            return 0;
-        }
-        return (int) (quantidadeEstoque / consumoDiario);
+        // long evita overflow e divisão inteira prematura de 24 / frequência.
+        long dias = ((long) quantidadeEstoque * frequenciaHoras) / (24L * quantidadePorDose);
+        return (int) Math.min(dias, Integer.MAX_VALUE);
     }
 
     /**
@@ -62,7 +59,7 @@ public class Medicamento {
             return false;
         }
         if (this.quantidadeEstoque >= qtd) {
-            this.quantidadeEstoque -= qtd;
+            setQuantidadeEstoque(this.quantidadeEstoque - qtd);
             return true;
         }
         return false;
@@ -72,9 +69,14 @@ public class Medicamento {
      * Ajuste manual de estoque decorrente de nova compra ou correção física (RF07 e RN07).
      */
     public void adicionarEstoque(int qtd) {
-        if (qtd > 0) {
-            this.quantidadeEstoque += qtd;
+        if (qtd <= 0) {
+            throw new IllegalArgumentException("A quantidade a adicionar deve ser maior que zero.");
         }
+        long novoEstoque = (long) this.quantidadeEstoque + qtd;
+        if (novoEstoque > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("A reposição ultrapassa o limite de estoque permitido.");
+        }
+        setQuantidadeEstoque((int) novoEstoque);
     }
 
     // Getters e Setters com validação de regras de negócio

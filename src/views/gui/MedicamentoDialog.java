@@ -34,12 +34,13 @@ public class MedicamentoDialog extends JDialog {
     }
 
     private void configurarLayout() {
-        setLayout(new BorderLayout(10, 10));
+        setLayout(new BorderLayout(16, 16));
+        getRootPane().setBorder(BorderFactory.createEmptyBorder(16, 16, 10, 16));
 
         JPanel pnlForm = new JPanel(new GridBagLayout());
         pnlForm.setBorder(BorderFactory.createEmptyBorder(15, 20, 10, 20));
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(6, 6, 6, 6);
+        gbc.insets = new Insets(10, 6, 10, 6);
         gbc.anchor = GridBagConstraints.WEST;
 
         gbc.gridx = 0; gbc.gridy = 0;
@@ -65,8 +66,8 @@ public class MedicamentoDialog extends JDialog {
         add(pnlForm, BorderLayout.CENTER);
 
         JPanel pnlBotoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        JButton btnCancelar = new JButton("Cancelar");
-        JButton btnSalvar = new JButton("Salvar Medicamento");
+        JButton btnCancelar = Tema.botao("Cancelar", false);
+        JButton btnSalvar = Tema.botao("Salvar medicamento", true);
         btnSalvar.setFont(btnSalvar.getFont().deriveFont(Font.BOLD));
 
         btnCancelar.addActionListener(e -> dispose());
@@ -96,13 +97,16 @@ public class MedicamentoDialog extends JDialog {
             return;
         }
 
-        medicamento.setNome(nome);
-        medicamento.setQuantidadeEstoque((Integer) spnEstoque.getValue());
-        medicamento.setFrequenciaHoras((Integer) spnFrequencia.getValue());
-        medicamento.setQuantidadePorDose((Integer) spnQtdDose.getValue());
-
-        confirmado = true;
-        dispose();
+        try {
+            medicamento.setNome(nome);
+            medicamento.setQuantidadeEstoque((Integer) spnEstoque.getValue());
+            medicamento.setFrequenciaHoras((Integer) spnFrequencia.getValue());
+            medicamento.setQuantidadePorDose((Integer) spnQtdDose.getValue());
+            confirmado = true;
+            dispose();
+        } catch (IllegalArgumentException e) {
+            JOptionPane.showMessageDialog(this, e.getMessage(), "Verifique os dados", JOptionPane.WARNING_MESSAGE);
+        }
     }
 
     public boolean isConfirmado() {
