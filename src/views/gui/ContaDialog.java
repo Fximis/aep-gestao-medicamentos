@@ -19,7 +19,7 @@ final class ContaDialog {
         JPasswordField nova = new JPasswordField(24);
         JPasswordField confirmacao = new JPasswordField(24);
         LoginWindow.campo(form, "Senha atual", atual);
-        LoginWindow.campo(form, "Nova senha (15 a 128 caracteres)", nova);
+        LoginWindow.campo(form, "Nova senha (" + Autenticacao.FAIXA_SENHA + ")", nova);
         LoginWindow.campo(form, "Confirme a nova senha", confirmacao);
         if (JOptionPane.showConfirmDialog(janela, form, "Alterar senha",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {

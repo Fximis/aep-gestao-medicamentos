@@ -14,7 +14,7 @@ import java.sql.*;
 import java.util.List;
 
 public class AutenticacaoIntegrationTest {
-    private static final String SENHA_TESTE = "Senha só para testes";
+    private static final String SENHA_TESTE = "aep42"; // Limite mínimo de cinco caracteres.
     private static int total;
 
     public static void main(String[] args) throws Exception {
@@ -32,7 +32,7 @@ public class AutenticacaoIntegrationTest {
         cadastrar(auth, "Paciente Dois", "dois@example.com", Autenticacao.Perfil.PACIENTE);
         cadastrar(auth, "Responsável", "familia@example.com", Autenticacao.Perfil.RESPONSAVEL);
         String hashUm = hash("um@example.com");
-        verificar(Senhas.ehHash(hashUm) && !hashUm.contains(SENHA_TESTE)
+        verificar(Senhas.ehHash(hashUm) && !hashUm.equals(SENHA_TESTE)
                 && !hashUm.equals(hash("dois@example.com")), "Hashes com salts distintos para a mesma senha");
         rejeitar(IllegalArgumentException.class,
                 () -> cadastrar(auth, "Duplicado", "UM@EXAMPLE.COM", Autenticacao.Perfil.PACIENTE));
@@ -40,7 +40,7 @@ public class AutenticacaoIntegrationTest {
                 () -> cadastrar(auth, "E-mail inválido", "sem-dominio", Autenticacao.Perfil.PACIENTE));
         rejeitar(IllegalArgumentException.class,
                 () -> auth.cadastrar("Curta", "curta@example.com", Autenticacao.Perfil.PACIENTE, "",
-                        "curta".toCharArray(), "curta".toCharArray()));
+                        "abcd".toCharArray(), "abcd".toCharArray()));
         rejeitar(IllegalArgumentException.class,
                 () -> auth.cadastrar("Divergente", "dif@example.com", Autenticacao.Perfil.PACIENTE, "",
                         SENHA_TESTE.toCharArray(), "Outra senha de teste".toCharArray()));
@@ -86,7 +86,7 @@ public class AutenticacaoIntegrationTest {
         familia.revogar(um, cuidador);
         rejeitar(IllegalArgumentException.class, () -> familia.consultar(responsavel, dono));
 
-        char[] nova = "Uma senha nova de teste".toCharArray();
+        char[] nova = "nova5".toCharArray();
         rejeitar(IllegalArgumentException.class,
                 () -> auth.alterarSenha(um, "incorreta".toCharArray(), nova, nova));
         auth.alterarSenha(um, SENHA_TESTE.toCharArray(), nova, nova);

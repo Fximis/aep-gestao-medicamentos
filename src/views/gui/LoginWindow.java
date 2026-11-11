@@ -88,7 +88,7 @@ public final class LoginWindow extends JFrame {
         JLabel rotuloDetalhe = campo(form, "Condição médica (opcional)", detalhe);
         perfil.addActionListener(e -> rotuloDetalhe.setText(perfil.getSelectedItem() == Autenticacao.Perfil.PACIENTE
                 ? "Condição médica (opcional)" : "Vínculo familiar (opcional)"));
-        campo(form, "Senha (15 a 128 caracteres)", senha);
+        campo(form, "Senha (" + Autenticacao.FAIXA_SENHA + ")", senha);
         campo(form, "Confirme a senha", confirmacao);
         cadastrar.addActionListener(e -> {
             char[] primeira = senha.getPassword();

@@ -33,6 +33,10 @@ public final class Autenticacao {
     }
 
     private static final Pattern EMAIL = Pattern.compile("[a-z0-9.!#$%&'*+/=?^_{}|~-]+@[a-z0-9-]+(?:\\.[a-z0-9-]+)+");
+    private static final int MIN_SENHA = 5;
+    private static final int MAX_SENHA = 128;
+    public static final String FAIXA_SENHA = MIN_SENHA + " a " + MAX_SENHA + " caracteres";
+
     private static final int MAX_TENTATIVAS = 5;
     private static final int LIMITE_SENHA_LEGADA = 255;
     private static final long PAUSA = Duration.ofSeconds(30).toNanos();
@@ -101,8 +105,8 @@ public final class Autenticacao {
     }
 
     private static void validarNovaSenha(char[] senha, char[] confirmacao) {
-        if (senha.length < 15 || senha.length > 128 || !temConteudo(senha)) {
-            throw new IllegalArgumentException("Escolha uma senha de 15 a 128 caracteres.");
+        if (senha.length < MIN_SENHA || senha.length > MAX_SENHA || !temConteudo(senha)) {
+            throw new IllegalArgumentException("Escolha uma senha de " + FAIXA_SENHA + ".");
         }
         if (!Arrays.equals(senha, confirmacao)) throw new IllegalArgumentException("As senhas não coincidem.");
     }

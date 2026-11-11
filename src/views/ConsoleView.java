@@ -94,7 +94,7 @@ public class ConsoleView {
         int opcao = lerInteiro("Perfil [1] Paciente [2] Responsável: ", 1, 2);
         Autenticacao.Perfil perfil = opcao == 1 ? Autenticacao.Perfil.PACIENTE : Autenticacao.Perfil.RESPONSAVEL;
         String detalhe = lerTexto(opcao == 1 ? "Condição médica (opcional): " : "Vínculo familiar (opcional): ");
-        char[] senha = lerSenha("Senha (15 a 128 caracteres): ");
+        char[] senha = lerSenha("Senha (" + Autenticacao.FAIXA_SENHA + "): ");
         char[] confirmacao = new char[0];
         try {
             confirmacao = lerSenha("Confirme a senha: ");
@@ -159,7 +159,7 @@ public class ConsoleView {
         char[] nova = new char[0];
         char[] confirmacao = new char[0];
         try {
-            nova = lerSenha("Nova senha (15 a 128 caracteres): ");
+            nova = lerSenha("Nova senha (" + Autenticacao.FAIXA_SENHA + "): ");
             confirmacao = lerSenha("Confirme a nova senha: ");
             autenticacao.alterarSenha(sessao, atual, nova, confirmacao);
             sucesso("Senha atualizada.");
