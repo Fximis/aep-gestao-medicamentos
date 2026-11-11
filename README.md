@@ -236,15 +236,20 @@ java -cp "bin;lib/*" Main
 java -cp "bin;lib/*" Main --cli
 ```
 
-### 5. Guia de Uso da Interface Gráfica (Desktop GUI)
+### 5. Interface Gráfica — Cuidado Diário
 
-A aplicação desktop foi projetada com visual moderno, acessível e humanizado, estruturada em abas:
+Para abrir com facilidade, extraia o projeto e execute **`iniciar.bat` no Windows** ou **`sh iniciar.sh` no Linux/macOS**. É necessário JDK 21 ou superior.
 
-* **Cabeçalho Informativo:** Identifica o paciente e o cuidador familiar em tempo real, com alertas imediatos de doses pendentes e aviso crítico se houver remédios com estoque $\le 5$ dias.
-* **Aba 🕒 Minha Rotina (Doses):** Tabela visual com os horários programados. Permite confirmar a tomada de uma dose selecionada ou executar a baixa de todas as doses devidas em lote (`⚡ Tomar Todas as Doses Agora`). Ao atingir a margem de 5 dias, um popup de alerta de recompra é emitido.
-* **Aba 💊 Meus Medicamentos & Estoque:** Painel central de gestão de medicamentos (*CRUD Completo*), com cálculo dinâmico de autonomia em dias, destaque visual em vermelho para itens em risco de desabastecimento, botões para cadastro, edição de dados, reposição rápida de estoque (novas caixas) e exclusão com diálogo de confirmação.
-* **Aba 👨‍👩‍👧 Espaço da Família / Cuidador:** Dashboard de acompanhamento familiar (*RF06 / RN08*) com barra de progresso gráfica de adesão diária (doses tomadas vs pendentes hoje).
-* **Aba ⚙️ Diretrizes Técnicas (Banca AEP):** Módulo dedicado à avaliação acadêmica, exibindo a comprovação formal de todos os requisitos do edital (conexão JDBC ativa, scripts DDL, integridade referencial, classes abstratas, interfaces genéricas e polimorfismo via `@Override`).
+A janela usa menu lateral, cores em verde-petróleo, cartões de resumo, tabelas com destaque de situação e formulários padronizados:
+
+* **Minha rotina:** horários e confirmação de doses, com pendências em primeiro lugar.
+* **Medicamentos:** cadastro, consulta, edição, reposição e exclusão, com autonomia e alerta de recompra.
+* **Minha família:** informações do paciente/cuidador e progresso das doses do dia.
+* **Sobre o projeto:** evidências técnicas para apresentação da AEP.
+
+Os cartões superiores mostram doses para agora, medicamentos que precisam de recompra e progresso diário. O estoque só diminui mediante confirmação da dose.
+
+Consulte [`docs/2a_entrega_modelos_interface.md`](docs/2a_entrega_modelos_interface.md) para os ajustes nos modelos, regras RN03/RN04/RN05, contrato `GenericDAO` e execução dos testes.
 
 ---
 

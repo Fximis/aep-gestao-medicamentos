@@ -11,7 +11,7 @@ import views.ConsoleView;
 import views.gui.MainWindow;
 
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+import views.gui.Tema;
 import java.awt.GraphicsEnvironment;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -49,10 +49,7 @@ public class Main {
 
         if (!modoConsole && !GraphicsEnvironment.isHeadless()) {
             SwingUtilities.invokeLater(() -> {
-                try {
-                    UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                } catch (Exception ignored) {
-                }
+                Tema.instalar();
                 new MainWindow().setVisible(true);
             });
             return;

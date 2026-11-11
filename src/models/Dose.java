@@ -20,6 +20,10 @@ public class Dose {
     public Dose() {
     }
 
+    public Dose(int medicamentoId, LocalDateTime horarioPrevisto) {
+        this(0, medicamentoId, horarioPrevisto);
+    }
+
     public Dose(int id, int medicamentoId, LocalDateTime horarioPrevisto) {
         this.id = id;
         this.medicamentoId = medicamentoId;

@@ -1,6 +1,6 @@
 # ADR-003: Interface Gráfica Desktop (Java Swing GUI) Humanizada com Painel Técnico Integrado
 
-**Status:** Vigente  
+**Status:** Vigente, com revisão dos itens 1 e 2 pelo [ADR-004](2026-11-10-adr-004-encapsulamento-autonomia-e-evolucao-visual.md)  
 **Data:** 2026-11-10  
 
 ---

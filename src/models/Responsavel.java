@@ -13,6 +13,10 @@ public class Responsavel extends Usuario {
         this.vinculoFamiliar = vinculoFamiliar;
     }
 
+    public Responsavel(String nome, String email, String senha, String vinculoFamiliar) {
+        this(0, nome, email, senha, vinculoFamiliar);
+    }
+
     @Override
     public String obterTipo() {
         return "RESPONSAVEL";

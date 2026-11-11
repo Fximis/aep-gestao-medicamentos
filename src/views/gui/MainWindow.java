@@ -11,7 +11,6 @@ import models.Responsavel;
 import models.Usuario;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.SQLException;
@@ -41,6 +40,7 @@ public class MainWindow extends JFrame {
     private JLabel lblAlertaDoses;
     private JProgressBar pgbAdesao;
     private JLabel lblAdesaoTexto;
+    private JLabel lblResumoAdesao;
 
     private JTable tblDoses;
     private DefaultTableModel modDoses;
@@ -72,256 +72,227 @@ public class MainWindow extends JFrame {
 
     private void configurarJanela() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(1000, 700);
-        setMinimumSize(new Dimension(850, 550));
+        Dimension tela = Toolkit.getDefaultToolkit().getScreenSize();
+        setSize(Math.min(1280, tela.width - 40), Math.min(850, tela.height - 60));
+        setMinimumSize(new Dimension(1020, 700));
         setLocationRelativeTo(null);
         setLayout(new BorderLayout());
+        getContentPane().setBackground(Tema.FUNDO);
 
-        // 1. Cabeçalho Superior Informativo
-        add(criarPainelCabecalho(), BorderLayout.NORTH);
+        CardLayout navegacao = new CardLayout();
+        JPanel paginas = new JPanel(navegacao);
+        paginas.setOpaque(false);
+        paginas.add(criarAbaRotinaDoses(), "rotina");
+        paginas.add(criarAbaMedicamentos(), "medicamentos");
+        paginas.add(criarAbaFamilia(), "familia");
+        paginas.add(criarAbaTecnica(), "tecnico");
 
-        // 2. Abas Principais
-        JTabbedPane tabbedPane = new JTabbedPane();
-        tabbedPane.setFont(new Font("SansSerif", Font.BOLD, 13));
+        JPanel conteudo = new JPanel(new BorderLayout(0, 20));
+        conteudo.setBorder(BorderFactory.createEmptyBorder(28, 28, 14, 28));
+        conteudo.add(criarPainelCabecalho(), BorderLayout.NORTH);
+        conteudo.add(paginas, BorderLayout.CENTER);
+        conteudo.add(criarPainelRodape(), BorderLayout.SOUTH);
+        add(criarMenu(navegacao, paginas), BorderLayout.WEST);
+        add(conteudo, BorderLayout.CENTER);
+    }
 
-        tabbedPane.addTab("  🕒 Minha Rotina (Doses)  ", criarAbaRotinaDoses());
-        tabbedPane.addTab("  💊 Meus Medicamentos & Estoque  ", criarAbaMedicamentos());
-        tabbedPane.addTab("  👨‍👩‍👧 Espaço da Família / Cuidador  ", criarAbaFamilia());
-        tabbedPane.addTab("  ⚙️ Diretrizes Técnicas (Banca AEP)  ", criarAbaTecnica());
+    private JPanel criarMenu(CardLayout navegacao, JPanel paginas) {
+        JPanel menu = new JPanel(new BorderLayout());
+        menu.setPreferredSize(new Dimension(206, 0));
+        menu.setBackground(Tema.MENU);
+        menu.setBorder(BorderFactory.createEmptyBorder(32, 18, 24, 18));
 
-        add(tabbedPane, BorderLayout.CENTER);
+        JPanel marca = new JPanel(new GridLayout(3, 1, 0, 4));
+        marca.setOpaque(false);
+        marca.add(Tema.texto("+  cuidado", 25, true, Color.WHITE));
+        marca.add(Tema.texto("     diário", 25, true, Color.WHITE));
+        marca.add(Tema.texto("   Mais cuidado. Mais você.", 10, false, new Color(163, 200, 186)));
+        menu.add(marca, BorderLayout.NORTH);
 
-        // 3. Rodapé com Status de Persistência
-        add(criarPainelRodape(), BorderLayout.SOUTH);
+        JPanel links = new JPanel();
+        links.setOpaque(false);
+        links.setLayout(new BoxLayout(links, BoxLayout.Y_AXIS));
+        links.setBorder(BorderFactory.createEmptyBorder(40, 0, 0, 0));
+        JLabel secao = Tema.texto("SEU ESPAÇO", 10, true, new Color(151, 189, 176));
+        secao.setAlignmentX(Component.LEFT_ALIGNMENT);
+        links.add(secao);
+        links.add(Box.createVerticalStrut(18));
+        ButtonGroup grupo = new ButtonGroup();
+        String[] titulos = {"01   Minha rotina", "02   Medicamentos", "03   Minha família", "04   Sobre o projeto"};
+        String[] ids = {"rotina", "medicamentos", "familia", "tecnico"};
+        for (int i = 0; i < titulos.length; i++) {
+            final String pagina = ids[i];
+            JToggleButton botao = new JToggleButton(titulos[i]);
+            Tema.estilizarBotao(botao, true);
+            botao.setHorizontalAlignment(SwingConstants.LEFT);
+            botao.setMaximumSize(new Dimension(180, 46));
+            botao.setAlignmentX(Component.LEFT_ALIGNMENT);
+            botao.setSelected(i == 0);
+            botao.setBackground(i == 0 ? Tema.VERDE : Tema.MENU);
+            botao.addItemListener(e -> {
+                botao.setBackground(botao.isSelected() ? Tema.VERDE : Tema.MENU);
+                botao.setForeground(botao.isSelected() ? Color.WHITE : new Color(185, 211, 200));
+            });
+            if (i != 0) botao.setForeground(new Color(185, 211, 200));
+            botao.addActionListener(e -> navegacao.show(paginas, pagina));
+            grupo.add(botao);
+            links.add(botao);
+            links.add(Box.createVerticalStrut(8));
+        }
+        menu.add(links, BorderLayout.CENTER);
+        JLabel assinatura = Tema.texto("<html>FEITO PARA CUIDAR<br><br>Uma rotina mais tranquila,<br>um dia de cada vez.</html>",
+                11, false, new Color(163, 200, 186));
+        menu.add(assinatura, BorderLayout.SOUTH);
+        return menu;
     }
 
     private JPanel criarPainelCabecalho() {
-        JPanel pnl = new JPanel(new BorderLayout(10, 5));
-        pnl.setBackground(new Color(245, 247, 250));
-        pnl.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(210, 215, 225)),
-                BorderFactory.createEmptyBorder(12, 16, 12, 16)
-        ));
+        JPanel cabecalho = new JPanel(new BorderLayout(0, 24));
+        cabecalho.setOpaque(false);
+        JPanel topo = new JPanel(new BorderLayout(12, 8));
+        topo.setOpaque(false);
+        JPanel saudacao = new JPanel();
+        saudacao.setLayout(new BoxLayout(saudacao, BoxLayout.Y_AXIS));
+        saudacao.setOpaque(false);
+        saudacao.add(Tema.texto("BEM-VINDO AO SEU ESPAÇO DE CUIDADO", 10, true, Tema.VERDE));
+        saudacao.add(Box.createVerticalStrut(10));
+        saudacao.add(Tema.texto("Seu cuidado, em dia.", 29, true, Tema.TEXTO));
+        saudacao.add(Box.createVerticalStrut(10));
+        lblStatusUsuario = Tema.texto("Paciente: " + pacienteAtivo.getNome()
+                + "  •  Cuidador: " + responsavelPadrao.getNome(), 12, false, Tema.SUAVE);
+        saudacao.add(lblStatusUsuario);
+        topo.add(saudacao, BorderLayout.CENTER);
+        JPanel data = new JPanel();
+        data.setLayout(new BoxLayout(data, BoxLayout.Y_AXIS));
+        data.setOpaque(false);
+        data.add(Tema.texto("HOJE", 10, true, Tema.SUAVE));
+        data.add(Box.createVerticalStrut(10));
+        data.add(Tema.texto(java.time.LocalDate.now().format(
+                DateTimeFormatter.ofPattern("dd 'de' MMMM", java.util.Locale.forLanguageTag("pt-BR"))),
+                14, true, Tema.TEXTO));
+        topo.add(data, BorderLayout.EAST);
+        cabecalho.add(topo, BorderLayout.NORTH);
 
-        JPanel pnlUser = new JPanel(new GridLayout(2, 1, 2, 2));
-        pnlUser.setOpaque(false);
+        JPanel resumos = new JPanel(new GridLayout(1, 3, 14, 0));
+        resumos.setOpaque(false);
+        lblAlertaDoses = Tema.texto("Consultando...", 15, true, Tema.TEXTO);
+        lblAlertaEstoque = Tema.texto("Consultando...", 15, true, Tema.TEXTO);
+        lblResumoAdesao = Tema.texto("Consultando...", 15, true, Tema.VERDE);
+        resumos.add(criarResumo("DOSES PARA AGORA", lblAlertaDoses, "Confirme após tomar o medicamento"));
+        resumos.add(criarResumo("ATENÇÃO AO ESTOQUE", lblAlertaEstoque, "Alerta preventivo com até 5 dias"));
+        resumos.add(criarResumo("SEU PROGRESSO HOJE", lblResumoAdesao, "Cada dose conta para o seu cuidado"));
+        cabecalho.add(resumos, BorderLayout.CENTER);
+        return cabecalho;
+    }
 
-        JLabel lblTitulo = new JLabel("CUIDADO DIÁRIO");
-        lblTitulo.setFont(new Font("SansSerif", Font.BOLD, 18));
-        lblTitulo.setForeground(new Color(30, 60, 100));
+    private JPanel criarResumo(String titulo, JLabel valor, String detalhe) {
+        JPanel card = Tema.card(new GridLayout(3, 1, 0, 9));
+        card.add(Tema.texto(titulo, 10, true, Tema.SUAVE));
+        card.add(valor);
+        card.add(Tema.texto(detalhe, 10, false, Tema.SUAVE));
+        return card;
+    }
 
-        lblStatusUsuario = new JLabel(String.format("Paciente: %s (%s)  |  Cuidador: %s (%s)",
-                pacienteAtivo.getNome(), pacienteAtivo.getCondicaoMedica(),
-                responsavelPadrao.getNome(), responsavelPadrao.getVinculoFamiliar()));
-        lblStatusUsuario.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        lblStatusUsuario.setForeground(new Color(70, 80, 95));
-
-        pnlUser.add(lblTitulo);
-        pnlUser.add(lblStatusUsuario);
-        pnl.add(pnlUser, BorderLayout.WEST);
-
-        // Painel de Alertas Rápidos (Doses Imediatas e Recompra)
-        JPanel pnlAlertas = new JPanel(new GridLayout(2, 1, 2, 2));
-        pnlAlertas.setOpaque(false);
-
-        lblAlertaDoses = new JLabel("🔔 Verificando doses...");
-        lblAlertaDoses.setFont(new Font("SansSerif", Font.BOLD, 12));
-
-        lblAlertaEstoque = new JLabel("📦 Verificando estoque...");
-        lblAlertaEstoque.setFont(new Font("SansSerif", Font.BOLD, 12));
-
-        pnlAlertas.add(lblAlertaDoses);
-        pnlAlertas.add(lblAlertaEstoque);
-        pnl.add(pnlAlertas, BorderLayout.EAST);
-
-        return pnl;
+    private JPanel criarPagina(String titulo, String descricao, JComponent corpo, JPanel acoes) {
+        JPanel pagina = new JPanel(new BorderLayout(0, 18));
+        pagina.setOpaque(false);
+        JPanel textos = new JPanel(new GridLayout(2, 1, 0, 6));
+        textos.setOpaque(false);
+        textos.add(Tema.texto(titulo, 21, true, Tema.TEXTO));
+        textos.add(Tema.texto(descricao, 12, false, Tema.SUAVE));
+        pagina.add(textos, BorderLayout.NORTH);
+        pagina.add(corpo, BorderLayout.CENTER);
+        if (acoes != null) pagina.add(acoes, BorderLayout.SOUTH);
+        return pagina;
     }
 
     private JPanel criarAbaRotinaDoses() {
-        JPanel pnl = new JPanel(new BorderLayout(10, 10));
-        pnl.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        // Tabela de Doses
-        String[] colunas = {"ID", "Medicamento", "Horário Previsto", "Horário Consumo", "Situação"};
-        modDoses = new DefaultTableModel(colunas, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
+        String[] colunas = {"ID", "MEDICAMENTO", "PREVISTO PARA", "CONSUMO", "SITUAÇÃO"};
+        modDoses = modeloTabela(colunas);
         tblDoses = new JTable(modDoses);
-        tblDoses.setRowHeight(28);
-        tblDoses.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tblDoses.getColumnModel().getColumn(0).setMaxWidth(60);
+        Tema.tabela(tblDoses, 4, "Aguardando");
+        tblDoses.getColumnModel().getColumn(0).setMinWidth(52);
+        tblDoses.getColumnModel().getColumn(0).setMaxWidth(52);
+        tblDoses.getColumnModel().getColumn(1).setPreferredWidth(245);
+        tblDoses.getColumnModel().getColumn(2).setPreferredWidth(150);
+        tblDoses.getColumnModel().getColumn(3).setPreferredWidth(145);
+        tblDoses.getColumnModel().getColumn(4).setPreferredWidth(185);
+        JPanel tabela = Tema.card(new BorderLayout());
+        tabela.add(Tema.rolagem(tblDoses));
+        JPanel acoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acoes.setOpaque(false);
+        JButton tomar = Tema.botao("Confirmar dose selecionada", true);
+        JButton todas = Tema.botao("Confirmar doses de agora", false);
+        JButton atualizar = Tema.botao("Atualizar", false);
+        tomar.addActionListener(e -> confirmarDoseSelecionada());
+        todas.addActionListener(e -> confirmarTodasDosesAgora());
+        atualizar.addActionListener(e -> carregarDados());
+        acoes.add(tomar);
+        acoes.add(todas);
+        acoes.add(atualizar);
+        return criarPagina("Minha rotina", "Seus horários e confirmações, em um só lugar. Selecione uma dose para continuar.", tabela, acoes);
+    }
 
-        // Renderizador para destacar pendentes
-        tblDoses.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+    private DefaultTableModel modeloTabela(String[] colunas) {
+        return new DefaultTableModel(colunas, 0) {
             @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (!isSelected) {
-                    String sit = (String) table.getValueAt(row, 4);
-                    if (sit != null && sit.contains("Aguardando")) {
-                        c.setBackground(new Color(255, 250, 230));
-                        c.setForeground(new Color(150, 80, 0));
-                    } else {
-                        c.setBackground(Color.WHITE);
-                        c.setForeground(new Color(40, 40, 40));
-                    }
-                }
-                return c;
-            }
-        });
-
-        pnl.add(new JScrollPane(tblDoses), BorderLayout.CENTER);
-
-        // Barra de Ações
-        JPanel pnlAcoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-
-        JButton btnTomar = new JButton("✔ Tomar Medicamento Selecionado");
-        btnTomar.setFont(btnTomar.getFont().deriveFont(Font.BOLD, 13f));
-        btnTomar.setBackground(new Color(46, 139, 87));
-        btnTomar.setForeground(Color.WHITE);
-
-        JButton btnTomarTodas = new JButton("⚡ Tomar Todas as Doses Agora");
-        btnTomarTodas.setFont(btnTomarTodas.getFont().deriveFont(Font.BOLD, 13f));
-        btnTomarTodas.setBackground(new Color(41, 128, 185));
-        btnTomarTodas.setForeground(Color.WHITE);
-
-        JButton btnAtualizar = new JButton("🔄 Atualizar Lista");
-
-        btnTomar.addActionListener(e -> confirmarDoseSelecionada());
-        btnTomarTodas.addActionListener(e -> confirmarTodasDosesAgora());
-        btnAtualizar.addActionListener(e -> carregarDados());
-
-        pnlAcoes.add(btnTomar);
-        pnlAcoes.add(btnTomarTodas);
-        pnlAcoes.add(btnAtualizar);
-
-        pnl.add(pnlAcoes, BorderLayout.SOUTH);
-        return pnl;
+            public boolean isCellEditable(int row, int column) { return false; }
+        };
     }
 
     private JPanel criarAbaMedicamentos() {
-        JPanel pnl = new JPanel(new BorderLayout(10, 10));
-        pnl.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        String[] colunas = {"ID", "Nome Comercial", "Estoque Físico", "Frequência", "Dose", "Autonomia (Dias)", "Status do Estoque"};
-        modMedicamentos = new DefaultTableModel(colunas, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
+        String[] colunas = {"ID", "MEDICAMENTO", "ESTOQUE", "INTERVALO", "DOSE", "AUTONOMIA", "SITUAÇÃO"};
+        modMedicamentos = modeloTabela(colunas);
         tblMedicamentos = new JTable(modMedicamentos);
-        tblMedicamentos.setRowHeight(28);
-        tblMedicamentos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tblMedicamentos.getColumnModel().getColumn(0).setMaxWidth(60);
-
-        // Destaque visual para medicamentos em alerta crítico (<= 5 dias)
-        tblMedicamentos.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
-                                                           boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                if (!isSelected) {
-                    String status = (String) table.getValueAt(row, 6);
-                    if (status != null && status.contains("RECOMPRA")) {
-                        c.setBackground(new Color(255, 235, 235));
-                        c.setForeground(new Color(180, 20, 20));
-                    } else {
-                        c.setBackground(Color.WHITE);
-                        c.setForeground(new Color(40, 40, 40));
-                    }
-                }
-                return c;
-            }
-        });
-
-        pnl.add(new JScrollPane(tblMedicamentos), BorderLayout.CENTER);
-
-        // Barra de Ações do CRUD
-        JPanel pnlAcoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
-
-        JButton btnNovo = new JButton("➕ Novo Medicamento");
-        JButton btnEditar = new JButton("✏️ Editar Dados");
-        JButton btnRepor = new JButton("📦 Repor Estoque (Nova Compra)");
-        btnRepor.setFont(btnRepor.getFont().deriveFont(Font.BOLD));
-        JButton btnExcluir = new JButton("🗑️ Excluir");
-        JButton btnAtualizar = new JButton("🔄 Atualizar");
-
-        btnNovo.addActionListener(e -> novoMedicamento());
-        btnEditar.addActionListener(e -> editarMedicamento());
-        btnRepor.addActionListener(e -> reporEstoque());
-        btnExcluir.addActionListener(e -> excluirMedicamento());
-        btnAtualizar.addActionListener(e -> carregarDados());
-
-        pnlAcoes.add(btnNovo);
-        pnlAcoes.add(btnEditar);
-        pnlAcoes.add(btnRepor);
-        pnlAcoes.add(btnExcluir);
-        pnlAcoes.add(btnAtualizar);
-
-        pnl.add(pnlAcoes, BorderLayout.SOUTH);
-        return pnl;
+        Tema.tabela(tblMedicamentos, 6, "Recomprar");
+        tblMedicamentos.getColumnModel().getColumn(0).setMinWidth(52);
+        tblMedicamentos.getColumnModel().getColumn(0).setMaxWidth(52);
+        tblMedicamentos.getColumnModel().getColumn(1).setPreferredWidth(240);
+        tblMedicamentos.getColumnModel().getColumn(6).setPreferredWidth(125);
+        JPanel tabela = Tema.card(new BorderLayout());
+        tabela.add(Tema.rolagem(tblMedicamentos));
+        JPanel acoes = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acoes.setOpaque(false);
+        JButton novo = Tema.botao("+ Novo medicamento", true);
+        JButton repor = Tema.botao("Repor estoque", false);
+        JButton editar = Tema.botao("Editar", false);
+        JButton excluir = Tema.botao("Excluir", false);
+        excluir.setForeground(Tema.ALERTA);
+        JButton atualizar = Tema.botao("Atualizar", false);
+        novo.addActionListener(e -> novoMedicamento());
+        repor.addActionListener(e -> reporEstoque());
+        editar.addActionListener(e -> editarMedicamento());
+        excluir.addActionListener(e -> excluirMedicamento());
+        atualizar.addActionListener(e -> carregarDados());
+        acoes.add(novo);
+        acoes.add(repor);
+        acoes.add(editar);
+        acoes.add(excluir);
+        acoes.add(atualizar);
+        return criarPagina("Meus medicamentos", "Acompanhe a autonomia e organize a próxima compra com tranquilidade.", tabela, acoes);
     }
 
     private JPanel criarAbaFamilia() {
-        JPanel pnl = new JPanel(new BorderLayout(15, 15));
-        pnl.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
-
-        JPanel pnlCards = new JPanel(new GridLayout(3, 1, 15, 15));
-
-        // Card 1: Informações do Cuidador e Paciente
-        JPanel c1 = criarCard("Acompanhamento Familiar Autorizado (RF06 / RN08)",
-                String.format("<html><b>Responsável Familiar:</b> %s (%s)<br>" +
-                        "<b>Paciente Assistido:</b> %s<br>" +
-                        "<b>Condição Médica / Diagnóstico:</b> %s</html>",
-                        responsavelPadrao.getNome(), responsavelPadrao.getVinculoFamiliar(),
-                        pacienteAtivo.getNome(), pacienteAtivo.getCondicaoMedica()));
-
-        // Card 2: Adesão do Dia
-        JPanel c2 = new JPanel(new BorderLayout(10, 10));
-        c2.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(210, 220, 235), 1),
-                BorderFactory.createEmptyBorder(12, 16, 12, 16)
-        ));
-        c2.setBackground(Color.WHITE);
-
-        JLabel lblTitC2 = new JLabel("Adesão ao Tratamento Hoje");
-        lblTitC2.setFont(new Font("SansSerif", Font.BOLD, 14));
-        lblTitC2.setForeground(new Color(30, 60, 100));
-
-        lblAdesaoTexto = new JLabel("Calculando doses do dia...");
-        lblAdesaoTexto.setFont(new Font("SansSerif", Font.PLAIN, 13));
-
+        JPanel cards = new JPanel(new GridLayout(3, 1, 0, 16));
+        cards.setOpaque(false);
+        cards.add(criarCard("Cuidar é melhor em companhia",
+                String.format("<html>Responsável: <b>%s</b> (%s)<br>Paciente: <b>%s</b><br>Condição médica: %s</html>",
+                responsavelPadrao.getNome(), responsavelPadrao.getVinculoFamiliar(),
+                pacienteAtivo.getNome(), pacienteAtivo.getCondicaoMedica())));
+        JPanel adesao = Tema.card(new BorderLayout(0, 14));
+        adesao.add(Tema.texto("Um passo de cada vez", 16, true, Tema.TEXTO), BorderLayout.NORTH);
+        lblAdesaoTexto = Tema.texto("Consultando doses de hoje...", 13, false, Tema.SUAVE);
         pgbAdesao = new JProgressBar(0, 100);
         pgbAdesao.setStringPainted(true);
-        pgbAdesao.setPreferredSize(new Dimension(200, 24));
-
-        JPanel pnlC2Body = new JPanel(new GridLayout(2, 1, 5, 5));
-        pnlC2Body.setOpaque(false);
-        pnlC2Body.add(lblAdesaoTexto);
-        pnlC2Body.add(pgbAdesao);
-
-        c2.add(lblTitC2, BorderLayout.NORTH);
-        c2.add(pnlC2Body, BorderLayout.CENTER);
-
-        // Card 3: Regra de Proteção
-        JPanel c3 = criarCard("Diretriz de Segurança e Autonomia do Paciente (RN01)",
-                "<html>O estoque <b>nunca é deduzido automaticamente</b> apenas pela passagem do horário programado.<br>" +
-                        "Cada baixa exige a confirmação ativa do paciente ou responsável, garantindo rastreabilidade " +
-                        "estrita do que foi realmente ingerido.</html>");
-
-        pnlCards.add(c1);
-        pnlCards.add(c2);
-        pnlCards.add(c3);
-
-        pnl.add(pnlCards, BorderLayout.NORTH);
-        return pnl;
+        pgbAdesao.setPreferredSize(new Dimension(200, 22));
+        pgbAdesao.setBorderPainted(false);
+        adesao.add(lblAdesaoTexto, BorderLayout.CENTER);
+        adesao.add(pgbAdesao, BorderLayout.SOUTH);
+        cards.add(adesao);
+        cards.add(criarCard("Você está no controle",
+                "<html>O estoque só diminui quando uma dose é confirmada.<br>" +
+                "Os alertas de recompra ajudam sua família a se planejar antes que o medicamento acabe.</html>"));
+        return criarPagina("Minha família", "Acompanhamento compartilhado para uma rotina com mais apoio.", Tema.rolagem(cards), null);
     }
 
     private JPanel criarAbaTecnica() {
@@ -332,7 +303,9 @@ public class MainWindow extends JFrame {
         txt.setEditable(false);
         txt.setFont(new Font("Monospaced", Font.PLAIN, 13));
         txt.setBackground(new Color(250, 252, 255));
-        txt.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        txt.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        txt.setLineWrap(true);
+        txt.setWrapStyleWord(true);
 
         StringBuilder sb = new StringBuilder();
         sb.append("=========================================================================================\n");
@@ -364,47 +337,23 @@ public class MainWindow extends JFrame {
         sb.append("   - Confirmação Ativa (RN01 / RN06): Baixa atômica de estoque em transação ACID via 'DoseDAO'.\n");
 
         txt.setText(sb.toString());
-        pnl.add(new JScrollPane(txt), BorderLayout.CENTER);
-        return pnl;
+        pnl.add(Tema.rolagem(txt), BorderLayout.CENTER);
+        return criarPagina("Sobre o projeto", "Arquitetura, persistência e regras da nossa AEP.", pnl, null);
     }
 
     private JPanel criarCard(String titulo, String htmlContent) {
-        JPanel card = new JPanel(new BorderLayout(5, 5));
-        card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(210, 220, 235), 1),
-                BorderFactory.createEmptyBorder(12, 16, 12, 16)
-        ));
-        card.setBackground(Color.WHITE);
-
-        JLabel lblTit = new JLabel(titulo);
-        lblTit.setFont(new Font("SansSerif", Font.BOLD, 14));
-        lblTit.setForeground(new Color(30, 60, 100));
-
-        JLabel lblBody = new JLabel(htmlContent);
-        lblBody.setFont(new Font("SansSerif", Font.PLAIN, 13));
-
-        card.add(lblTit, BorderLayout.NORTH);
-        card.add(lblBody, BorderLayout.CENTER);
+        JPanel card = Tema.card(new BorderLayout(0, 12));
+        card.add(Tema.texto(titulo, 16, true, Tema.TEXTO), BorderLayout.NORTH);
+        card.add(Tema.texto(htmlContent, 13, false, Tema.SUAVE), BorderLayout.CENTER);
         return card;
     }
 
     private JPanel criarPainelRodape() {
-        JPanel pnl = new JPanel(new BorderLayout());
-        pnl.setBorder(BorderFactory.createEmptyBorder(6, 16, 6, 16));
-        pnl.setBackground(new Color(240, 242, 245));
-
-        String sgbd = DatabaseConnection.isUsingSQLite() ? "SQLite (database/gestao_medicamentos.db)" : "MySQL (localhost:3306)";
-        JLabel lblStatus = new JLabel("✔ Conexão Ativa com Banco de Dados Relacional: " + sgbd);
-        lblStatus.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        lblStatus.setForeground(new Color(40, 120, 60));
-
-        JLabel lblVersao = new JLabel("AEP 4º Semestre (2026.2) — Engenharia de Software & ADS");
-        lblVersao.setFont(new Font("SansSerif", Font.ITALIC, 11));
-        lblVersao.setForeground(Color.GRAY);
-
-        pnl.add(lblStatus, BorderLayout.WEST);
-        pnl.add(lblVersao, BorderLayout.EAST);
-        return pnl;
+        JPanel rodape = new JPanel(new BorderLayout());
+        rodape.setOpaque(false);
+        rodape.add(Tema.texto("Dados salvos neste computador", 11, false, Tema.SUAVE), BorderLayout.WEST);
+        rodape.add(Tema.texto("Cuidado Diário  /  AEP 2026", 11, false, Tema.SUAVE), BorderLayout.EAST);
+        return rodape;
     }
 
     // -------------------------------------------------------------------------
@@ -425,7 +374,7 @@ public class MainWindow extends JFrame {
                     medicamentosEmAlerta++;
                 }
 
-                String status = alerta ? "🚨 RECOMPRA URGENTE" : "✅ Nível Seguro";
+                String status = alerta ? "Recomprar em breve" : "Estoque seguro";
                 modMedicamentos.addRow(new Object[]{
                         m.getId(),
                         m.getNome(),
@@ -439,15 +388,18 @@ public class MainWindow extends JFrame {
 
             // Atualiza alerta de estoque no cabeçalho
             if (medicamentosEmAlerta > 0) {
-                lblAlertaEstoque.setText("🚨 " + medicamentosEmAlerta + " remédio(s) acabando (≤ 5 dias)!");
-                lblAlertaEstoque.setForeground(new Color(190, 30, 30));
+                lblAlertaEstoque.setText(medicamentosEmAlerta + " para recomprar");
+                lblAlertaEstoque.setForeground(Tema.ALERTA);
             } else {
-                lblAlertaEstoque.setText("📦 Estoque em nível seguro");
-                lblAlertaEstoque.setForeground(new Color(40, 120, 60));
+                lblAlertaEstoque.setText("Tudo em dia");
+                lblAlertaEstoque.setForeground(Tema.VERDE);
             }
 
             // 2. Carrega Doses
             List<Dose> doses = doseDAO.listarPorUsuario(pacienteAtivo.getId());
+            doses.sort(java.util.Comparator.comparing(Dose::isStatusTomado)
+                    .thenComparing(Dose::getHorarioPrevisto,
+                            java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())));
             modDoses.setRowCount(0);
 
             int dosesDevidasAgora = 0;
@@ -469,7 +421,7 @@ public class MainWindow extends JFrame {
 
                 String prevStr = d.getHorarioPrevisto() != null ? d.getHorarioPrevisto().format(FORMATTER) : "N/D";
                 String consStr = d.getHorarioConsumo() != null ? d.getHorarioConsumo().format(FORMATTER) : "--";
-                String sitStr = tomada ? "✔ Tomada (" + consStr + ")" : "⏳ Aguardando Confirmação";
+                String sitStr = tomada ? "Confirmada" : "Aguardando confirmação";
 
                 modDoses.addRow(new Object[]{
                         d.getId(),
@@ -482,21 +434,23 @@ public class MainWindow extends JFrame {
 
             // Atualiza alerta de doses no cabeçalho
             if (dosesDevidasAgora > 0) {
-                lblAlertaDoses.setText("🔔 " + dosesDevidasAgora + " dose(s) para tomar agora!");
-                lblAlertaDoses.setForeground(new Color(190, 100, 0));
+                lblAlertaDoses.setText(dosesDevidasAgora + " dose(s) pendente(s)");
+                lblAlertaDoses.setForeground(new Color(169, 107, 37));
             } else {
-                lblAlertaDoses.setText("✔ Nenhuma dose atrasada agora");
-                lblAlertaDoses.setForeground(new Color(40, 120, 60));
+                lblAlertaDoses.setText("Nenhuma dose pendente");
+                lblAlertaDoses.setForeground(Tema.VERDE);
             }
 
             // Atualiza barra de adesão familiar
             if (dosesHojeTotal > 0) {
                 int pct = (int) Math.round(((double) dosesHojeTomadas / dosesHojeTotal) * 100.0);
                 pgbAdesao.setValue(pct);
+                lblResumoAdesao.setText(dosesHojeTomadas + " de " + dosesHojeTotal + " doses confirmadas");
                 lblAdesaoTexto.setText(String.format("%d de %d doses de hoje já foram tomadas (%d%% de adesão).",
                         dosesHojeTomadas, dosesHojeTotal, pct));
             } else {
-                pgbAdesao.setValue(100);
+                pgbAdesao.setValue(0);
+                lblResumoAdesao.setText("Sem doses para hoje");
                 lblAdesaoTexto.setText("Nenhuma dose agendada para hoje até o momento.");
             }
 
@@ -677,17 +631,18 @@ public class MainWindow extends JFrame {
             dlg.setVisible(true);
 
             if (dlg.isConfirmado()) {
-                int novaQtd = med.getQuantidadeEstoque() + dlg.getQuantidadeAdicionada();
+                med.adicionarEstoque(dlg.getQuantidadeAdicionada());
+                int novaQtd = med.getQuantidadeEstoque();
                 medicamentoDAO.atualizarEstoque(id, novaQtd);
                 carregarDados();
 
                 JOptionPane.showMessageDialog(this,
                         String.format("Estoque de '%s' atualizado!\nNova quantidade: %d comprimidos (Autonomia: %d dias).",
-                                med.getNome(), novaQtd, (novaQtd / ((24 / med.getFrequenciaHoras()) * med.getQuantidadePorDose()))),
+                                med.getNome(), novaQtd, med.calcularDiasRestantes()),
                         "Estoque Reposto com Sucesso", JOptionPane.INFORMATION_MESSAGE);
             }
 
-        } catch (SQLException e) {
+        } catch (SQLException | IllegalArgumentException e) {
             JOptionPane.showMessageDialog(this, "Erro ao repor estoque: " + e.getMessage(), "Erro", JOptionPane.ERROR_MESSAGE);
         }
     }

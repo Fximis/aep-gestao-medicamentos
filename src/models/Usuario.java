@@ -6,10 +6,10 @@ package models;
  */
 public abstract class Usuario {
 
-    protected int id;
-    protected String nome;
-    protected String email;
-    protected String senha;
+    private int id;
+    private String nome;
+    private String email;
+    private String senha;
 
     public Usuario(int id, String nome, String email, String senha) {
         this.id = id;
