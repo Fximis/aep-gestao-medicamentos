@@ -241,7 +241,7 @@ java -cp "bin;lib/*" Main --cli
 ### 5. Primeiro acesso
 
 1. Extraia o projeto e execute `iniciar.bat` no Windows ou `sh iniciar.sh` no Linux/macOS.
-2. Abra **Cadastro**, informe nome e e-mail, selecione **Paciente** ou **Responsável** e confirme uma senha de 15 a 128 caracteres.
+2. Abra **Cadastro**, informe nome e e-mail, selecione **Paciente** ou **Responsável** e confirme uma senha de 5 a 128 caracteres.
 3. Entre com o e-mail e a senha cadastrados. O paciente acessa sua rotina e seus medicamentos. O responsável consulta os pacientes que autorizaram sua conta.
 4. No painel do paciente, abra **Minha família → Gerenciar acessos**. Informe o e-mail da conta do responsável para autorizar a consulta. Use a lista de responsáveis autorizados para revogar o acesso.
 5. Use **Alterar senha** para trocar a credencial com a senha atual ou **Sair da conta** para voltar à entrada.
