@@ -3,420 +3,335 @@ package dao;
 import config.DatabaseConnection;
 import models.Dose;
 import models.Medicamento;
-
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.format.DateTimeParseException;
+import java.util.*;
 
 /**
- * Data Access Object para agendamento, notificação e confirmação de doses.
- * Contém a regra de ouro: baixa do estoque e recálculo com transação ACID.
+ * Agenda e confirmacao de doses: contribuicao de Carlos Henrique.
+ * RF02, RF03, RF04, RN01 e RN06. Mantem as APIs usadas pela GUI original.
  */
 public class DoseDAO {
-
-    private static final DateTimeFormatter ISO_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter SQL_DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String SELECT_DOSES = """
+            SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento,
+                   d.horario_previsto, d.horario_consumo, d.status_tomado
+            FROM dose d JOIN medicamento m ON m.id = d.medicamento_id
+            """;
 
     public void inserir(Dose dose) throws SQLException {
-        String sql = "INSERT INTO dose (medicamento_id, horario_previsto, horario_consumo, status_tomado) " +
-                "VALUES (?, ?, ?, ?)";
+        Objects.requireNonNull(dose, "Informe a dose.");
+        if (dose.getMedicamentoId() <= 0 || dose.getHorarioPrevisto() == null)
+            throw new IllegalArgumentException("Medicamento e horario previsto sao obrigatorios.");
+        if (dose.isStatusTomado() || dose.getHorarioConsumo() != null)
+            throw new IllegalArgumentException("Use confirmarTomadaDose para registrar consumo.");
+        int id = emTransacao(conn -> inserirPendente(conn, dose.getMedicamentoId(), dose.getHorarioPrevisto()));
+        dose.setId(id);
+    }
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
-            stmt.setInt(1, dose.getMedicamentoId());
-            setTimestampParam(stmt, 2, dose.getHorarioPrevisto());
-            setTimestampParam(stmt, 3, dose.getHorarioConsumo());
-            stmt.setBoolean(4, dose.isStatusTomado());
-
-            stmt.executeUpdate();
-
-            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    dose.setId(generatedKeys.getInt(1));
+    /** Cadastro e primeira agenda sao salvos juntos, ou nada e salvo. */
+    public void cadastrarTratamento(Medicamento m, int quantidadeDoses) throws SQLException {
+        validarTratamento(m, quantidadeDoses);
+        int id = emTransacao(conn -> {
+            int novoId;
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    INSERT INTO medicamento
+                    (usuario_id, nome, quantidade_estoque, frequencia_horas, quantidade_por_dose)
+                    VALUES (?, ?, ?, ?, ?)
+                    """, Statement.RETURN_GENERATED_KEYS)) {
+                stmt.setInt(1, m.getUsuarioId());
+                stmt.setString(2, m.getNome());
+                stmt.setInt(3, m.getQuantidadeEstoque());
+                stmt.setInt(4, m.getFrequenciaHoras());
+                stmt.setInt(5, m.getQuantidadePorDose());
+                exigirUmaLinha(stmt.executeUpdate());
+                try (ResultSet rs = stmt.getGeneratedKeys()) {
+                    if (!rs.next()) throw new SQLException("Banco nao retornou o ID do medicamento.");
+                    novoId = rs.getInt(1);
                 }
             }
-        }
+            inserirAgenda(conn, novoId, LocalDateTime.now(), m.getFrequenciaHoras(), quantidadeDoses);
+            return novoId;
+        });
+        m.setId(id); // Somente depois do commit.
     }
 
-    /**
-     * Gera e persiste a agenda de doses futuras para um medicamento com base no intervalo de horas.
-     */
-    public void gerarAgendaFutura(Medicamento medicamento, int quantidadeDoses) throws SQLException {
-        LocalDateTime proximaDose = LocalDateTime.now();
-        for (int i = 0; i < quantidadeDoses; i++) {
-            Dose dose = new Dose(0, medicamento.getId(), proximaDose);
-            inserir(dose);
-            proximaDose = proximaDose.plusHours(medicamento.getFrequenciaHoras());
-        }
-    }
-
-    /**
-     * Lista todas as doses de um paciente (pendentes e já tomadas), ordenadas por horário.
-     */
-    public List<Dose> listarPorUsuario(int usuarioId) throws SQLException {
-        String sql = "SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento, " +
-                "d.horario_previsto, d.horario_consumo, d.status_tomado " +
-                "FROM dose d " +
-                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
-                "WHERE m.usuario_id = ? " +
-                "ORDER BY d.horario_previsto DESC";
-
-        List<Dose> lista = new ArrayList<>();
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, usuarioId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    lista.add(instanciarDose(rs));
-                }
+    /** Altera posologia e refaz pendencias, preservando estoque e doses ja tomadas. */
+    public void atualizarTratamento(Medicamento m, int quantidadeDoses) throws SQLException {
+        validarTratamento(m, quantidadeDoses);
+        emTransacao(conn -> {
+            try (PreparedStatement stmt = conn.prepareStatement("""
+                    UPDATE medicamento SET nome = ?, frequencia_horas = ?, quantidade_por_dose = ?
+                    WHERE id = ? AND usuario_id = ?
+                    """)) {
+                stmt.setString(1, m.getNome());
+                stmt.setInt(2, m.getFrequenciaHoras());
+                stmt.setInt(3, m.getQuantidadePorDose());
+                stmt.setInt(4, m.getId());
+                stmt.setInt(5, m.getUsuarioId());
+                stmt.executeUpdate();
             }
-        }
-        return lista;
+            buscarMedicamento(conn, m.getId(), m.getUsuarioId());
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "DELETE FROM dose WHERE medicamento_id = ? AND status_tomado = FALSE")) {
+                stmt.setInt(1, m.getId());
+                stmt.executeUpdate();
+            }
+            inserirAgenda(conn, m.getId(), LocalDateTime.now().plusHours(m.getFrequenciaHoras()),
+                    m.getFrequenciaHoras(), quantidadeDoses);
+            return null;
+        });
     }
 
-    /**
-     * Lista todas as doses pendentes de um paciente (RF02 - Lembretes).
-     */
+    /** Altera somente o nome, preservando estoque e agenda. */
+    public void atualizarNome(Medicamento m) throws SQLException {
+        validarTratamento(m, 1);
+        emTransacao(conn -> {
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "UPDATE medicamento SET nome = ? WHERE id = ? AND usuario_id = ?")) {
+                stmt.setString(1, m.getNome());
+                stmt.setInt(2, m.getId());
+                stmt.setInt(3, m.getUsuarioId());
+                stmt.executeUpdate();
+            }
+            buscarMedicamento(conn, m.getId(), m.getUsuarioId());
+            return null;
+        });
+    }
+
+    public void gerarAgendaFutura(Medicamento m, int quantidadeDoses) throws SQLException {
+        validarTratamento(m, quantidadeDoses);
+        emTransacao(conn -> {
+            Medicamento atual = buscarMedicamento(conn, m.getId(), m.getUsuarioId());
+            inserirAgenda(conn, atual.getId(), proximoHorario(conn, atual.getId(), atual.getFrequenciaHoras()),
+                    atual.getFrequenciaHoras(), quantidadeDoses);
+            return null;
+        });
+    }
+
     public List<Dose> listarPendentesPorPaciente(int usuarioId) throws SQLException {
-        String sql = "SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento, " +
-                "d.horario_previsto, d.horario_consumo, d.status_tomado " +
-                "FROM dose d " +
-                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
-                "WHERE m.usuario_id = ? AND d.status_tomado = 0 " +
-                "ORDER BY d.horario_previsto ASC";
-
-        List<Dose> lista = new ArrayList<>();
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, usuarioId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    lista.add(instanciarDose(rs));
-                }
-            }
-        }
-        return lista;
+        return consultarDoses(SELECT_DOSES + """
+                WHERE m.usuario_id = ? AND d.status_tomado = FALSE
+                ORDER BY d.horario_previsto ASC, d.id ASC
+                """, usuarioId);
     }
 
-    /**
-     * Histórico completo de doses de um medicamento.
-     */
+    public List<Dose> listarPorUsuario(int usuarioId) throws SQLException {
+        return consultarDoses(SELECT_DOSES +
+                " WHERE m.usuario_id = ? ORDER BY d.horario_previsto DESC, d.id DESC", usuarioId);
+    }
+
     public List<Dose> listarPorMedicamento(int medicamentoId) throws SQLException {
-        String sql = "SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento, " +
-                "d.horario_previsto, d.horario_consumo, d.status_tomado " +
-                "FROM dose d " +
-                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
-                "WHERE d.medicamento_id = ? " +
-                "ORDER BY d.horario_previsto ASC";
-
-        List<Dose> lista = new ArrayList<>();
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, medicamentoId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    lista.add(instanciarDose(rs));
-                }
-            }
-        }
-        return lista;
+        return consultarDoses(SELECT_DOSES +
+                " WHERE d.medicamento_id = ? ORDER BY d.horario_previsto, d.id", medicamentoId);
     }
 
-    /**
-     * Retorna o histórico recente de doses já consumidas pelo paciente.
-     */
     public List<Dose> listarHistoricoRecente(int usuarioId, int limite) throws SQLException {
-        String sql = "SELECT d.id, d.medicamento_id, m.nome AS nome_medicamento, " +
-                "d.horario_previsto, d.horario_consumo, d.status_tomado " +
-                "FROM dose d " +
-                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
-                "WHERE m.usuario_id = ? AND d.status_tomado = 1 " +
-                "ORDER BY d.horario_consumo DESC LIMIT ?";
-
-        List<Dose> lista = new ArrayList<>();
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, usuarioId);
-            stmt.setInt(2, limite);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    lista.add(instanciarDose(rs));
-                }
-            }
-        }
-        return lista;
+        if (limite <= 0) throw new IllegalArgumentException("O limite deve ser positivo.");
+        return consultarDoses(SELECT_DOSES + """
+                WHERE m.usuario_id = ? AND d.status_tomado = TRUE
+                ORDER BY d.horario_consumo DESC, d.id DESC LIMIT ?
+                """, usuarioId, limite);
     }
 
-    /**
-     * Retorna apenas as doses devidas agora (horario atingido ou dentro dos proximos 60 minutos).
-     */
     public List<Dose> listarDosesParaTomarAgora(int usuarioId) throws SQLException {
-        List<Dose> pendentes = listarPendentesPorPaciente(usuarioId);
-        List<Dose> devidas = new ArrayList<>();
-        for (Dose d : pendentes) {
-            if (d.isDevidaAgora()) {
-                devidas.add(d);
-            }
-        }
-        return devidas;
+        return listarPendentesPorPaciente(usuarioId).stream().filter(Dose::isDevidaAgora).toList();
     }
 
-    /**
-     * Retorna as proximas doses previstas para hoje que ainda nao estao na janela imediata.
-     */
     public List<Dose> listarProximasHoje(int usuarioId) throws SQLException {
-        List<Dose> pendentes = listarPendentesPorPaciente(usuarioId);
-        List<Dose> hoje = new ArrayList<>();
-        for (Dose d : pendentes) {
-            if (!d.isDevidaAgora() && d.isHoje()) {
-                hoje.add(d);
-            }
-        }
-        return hoje;
+        return listarPendentesPorPaciente(usuarioId).stream()
+                .filter(d -> !d.isDevidaAgora() && d.isHoje()).toList();
     }
 
-    /**
-     * Retorna as doses programadas para os proximos dias (amanha em diante).
-     */
     public List<Dose> listarProximosDias(int usuarioId) throws SQLException {
-        List<Dose> pendentes = listarPendentesPorPaciente(usuarioId);
-        List<Dose> dias = new ArrayList<>();
-        for (Dose d : pendentes) {
-            if (!d.isDevidaAgora() && !d.isHoje()) {
-                dias.add(d);
-            }
-        }
-        return dias;
+        return listarPendentesPorPaciente(usuarioId).stream()
+                .filter(d -> !d.isDevidaAgora() && !d.isHoje()).toList();
     }
 
-    /**
-     * Executa a confirmação formal da dose tomada com transação atômica (ACID).
-     * Deduz a quantidade do estoque físico e recalcula dias restantes (RN01, RN02, RN05, RN06).
-     * Garante o fechamento da conexão (sem memory leak).
-     *
-     * @return Medicamento atualizado com novo estoque e autonomia
-     */
+    /** API anterior preservada para a GUI; o console usa a sobrecarga com paciente. */
     public Medicamento confirmarTomadaDose(int doseId) throws SQLException {
-        Connection conn = DatabaseConnection.getConnection();
-        boolean autoCommitOriginal = conn.getAutoCommit();
-
-        try {
-            conn.setAutoCommit(false); // Início da Transação ACID
-            Medicamento medicamento = executarConfirmacaoDoseInterna(conn, doseId);
-            conn.commit();
-            return medicamento;
-        } catch (SQLException | RuntimeException e) {
-            try {
-                conn.rollback();
-            } catch (SQLException ignored) {
-            }
-            throw e;
-        } finally {
-            try {
-                conn.setAutoCommit(autoCommitOriginal);
-                conn.close(); // Fecha conexao para evitar resource leak
-            } catch (SQLException ignored) {
-            }
-        }
+        return emTransacao(conn -> confirmarInternamente(conn, doseId, null));
     }
 
-    /**
-     * Confirma um lote de doses de uma vez só (ex: paciente toma todos os remédios da manhã juntos).
-     * Executado em uma única transação atômica ACID.
-     */
+    public Medicamento confirmarTomadaDose(int doseId, int pacienteId) throws SQLException {
+        if (pacienteId <= 0) throw new IllegalArgumentException("Paciente invalido.");
+        return emTransacao(conn -> confirmarInternamente(conn, doseId, pacienteId));
+    }
+
     public List<Medicamento> confirmarTodasDosesAgora(List<Integer> doseIds) throws SQLException {
-        if (doseIds == null || doseIds.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        Connection conn = DatabaseConnection.getConnection();
-        boolean autoCommitOriginal = conn.getAutoCommit();
-        List<Medicamento> atualizados = new ArrayList<>();
-
-        try {
-            conn.setAutoCommit(false);
-            for (int doseId : doseIds) {
-                Medicamento med = executarConfirmacaoDoseInterna(conn, doseId);
-                atualizados.add(med);
-            }
-            conn.commit();
-            return atualizados;
-        } catch (SQLException | RuntimeException e) {
-            try {
-                conn.rollback();
-            } catch (SQLException ignored) {
-            }
-            throw e;
-        } finally {
-            try {
-                conn.setAutoCommit(autoCommitOriginal);
-                conn.close();
-            } catch (SQLException ignored) {
-            }
-        }
+        Objects.requireNonNull(doseIds, "Informe as doses.");
+        if (doseIds.isEmpty()) return List.of();
+        if (doseIds.stream().anyMatch(id -> id == null || id <= 0)
+                || new HashSet<>(doseIds).size() != doseIds.size())
+            throw new IllegalArgumentException("Informe IDs positivos, sem repeticao.");
+        List<Integer> ordenados = new ArrayList<>(doseIds);
+        Collections.sort(ordenados);
+        return emTransacao(conn -> {
+            List<Medicamento> resultado = new ArrayList<>();
+            for (int id : ordenados) resultado.add(confirmarInternamente(conn, id, null));
+            return resultado;
+        });
     }
 
-    private Medicamento executarConfirmacaoDoseInterna(Connection conn, int doseId) throws SQLException {
-        String sqlSelectDose = "SELECT d.id, d.status_tomado, m.id AS med_id, m.usuario_id, m.nome, " +
-                "m.quantidade_estoque, m.frequencia_horas, m.quantidade_por_dose " +
-                "FROM dose d " +
-                "INNER JOIN medicamento m ON d.medicamento_id = m.id " +
-                "WHERE d.id = ?";
-
-        String sqlUpdateDose = "UPDATE dose SET status_tomado = 1, horario_consumo = ? WHERE id = ?";
-        String sqlUpdateEstoque = "UPDATE medicamento SET quantidade_estoque = ? WHERE id = ?";
-
-        Medicamento medicamento;
-        boolean jaTomada;
-
-        // 1. Consulta dose e medicamento
-        try (PreparedStatement stmtSelect = conn.prepareStatement(sqlSelectDose)) {
-            stmtSelect.setInt(1, doseId);
-            try (ResultSet rs = stmtSelect.executeQuery()) {
-                if (!rs.next()) {
-                    throw new IllegalArgumentException("Dose com ID #" + doseId + " nao encontrada.");
-                }
-                jaTomada = rs.getBoolean("status_tomado");
-                if (jaTomada) {
-                    throw new IllegalStateException("Esta dose ja foi registrada como tomada anteriormente.");
-                }
-
-                medicamento = new Medicamento(
-                        rs.getInt("med_id"),
-                        rs.getInt("usuario_id"),
-                        rs.getString("nome"),
-                        rs.getInt("quantidade_estoque"),
-                        rs.getInt("frequencia_horas"),
-                        rs.getInt("quantidade_por_dose")
-                );
+    private Medicamento confirmarInternamente(Connection conn, int doseId, Integer pacienteId)
+            throws SQLException {
+        if (doseId <= 0) throw new IllegalArgumentException("Dose invalida.");
+        // Atualizacao condicional: duas confirmacoes nao baixam a mesma dose duas vezes.
+        String sql = """
+                UPDATE dose SET status_tomado = TRUE, horario_consumo = ?
+                WHERE id = ? AND status_tomado = FALSE
+                """ + (pacienteId == null ? "" :
+                " AND medicamento_id IN (SELECT id FROM medicamento WHERE usuario_id = ?)");
+        try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, LocalDateTime.now().format(SQL_DATE));
+            stmt.setInt(2, doseId);
+            if (pacienteId != null) stmt.setInt(3, pacienteId);
+            if (stmt.executeUpdate() != 1)
+                throw new IllegalStateException("Dose inexistente, ja confirmada ou nao pertencente ao paciente.");
+        }
+        int medicamentoId;
+        try (PreparedStatement stmt = conn.prepareStatement("SELECT medicamento_id FROM dose WHERE id = ?")) {
+            stmt.setInt(1, doseId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Dose nao encontrada apos atualizacao.");
+                medicamentoId = rs.getInt(1);
             }
         }
-
-        // 2. Valida estoque suficiente (RN04)
-        if (!medicamento.reduzirEstoque(medicamento.getQuantidadePorDose())) {
-            throw new IllegalStateException("Estoque insuficiente de '" + medicamento.getNome() +
-                    "' para registrar a tomada. Por favor, reponha o estoque no menu.");
+        // Subtracao no banco evita gravar um estoque obsoleto e impede valores negativos.
+        try (PreparedStatement stmt = conn.prepareStatement("""
+                UPDATE medicamento SET quantidade_estoque = quantidade_estoque - quantidade_por_dose
+                WHERE id = ? AND quantidade_por_dose > 0 AND frequencia_horas > 0
+                  AND quantidade_estoque >= quantidade_por_dose
+                """)) {
+            stmt.setInt(1, medicamentoId);
+            if (stmt.executeUpdate() != 1)
+                throw new IllegalStateException("Estoque insuficiente ou posologia invalida. Dose nao confirmada.");
         }
-
-        // 3. Atualiza registro da dose
-        try (PreparedStatement stmtDose = conn.prepareStatement(sqlUpdateDose)) {
-            setTimestampParam(stmtDose, 1, LocalDateTime.now());
-            stmtDose.setInt(2, doseId);
-            stmtDose.executeUpdate();
-        }
-
-        // 4. Atualiza registro do estoque no banco
-        try (PreparedStatement stmtEstoque = conn.prepareStatement(sqlUpdateEstoque)) {
-            stmtEstoque.setInt(1, medicamento.getQuantidadeEstoque());
-            stmtEstoque.setInt(2, medicamento.getId());
-            stmtEstoque.executeUpdate();
-        }
-
-        // 5. Agendamento contínuo: se as doses pendentes ficarem baixas, programa a próxima
-        agendarProximaDoseSeNecessario(conn, medicamento.getId(), medicamento.getFrequenciaHoras());
-
-        return medicamento;
+        Medicamento atualizado = buscarMedicamento(conn, medicamentoId, pacienteId);
+        agendarProximaDoseSeNecessario(conn, atualizado);
+        return atualizado;
     }
 
-    private void agendarProximaDoseSeNecessario(Connection conn, int medicamentoId, int frequenciaHoras) throws SQLException {
-        String sqlCount = "SELECT COUNT(*) FROM dose WHERE medicamento_id = ? AND status_tomado = 0";
-        int pendentes = 0;
-        try (PreparedStatement stmtCount = conn.prepareStatement(sqlCount)) {
-            stmtCount.setInt(1, medicamentoId);
-            try (ResultSet rs = stmtCount.executeQuery()) {
+    private void agendarProximaDoseSeNecessario(Connection conn, Medicamento m) throws SQLException {
+        int pendentes;
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT COUNT(*) FROM dose WHERE medicamento_id = ? AND status_tomado = FALSE")) {
+            stmt.setInt(1, m.getId());
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Falha na consulta de pendencias.");
+                pendentes = rs.getInt(1);
+            }
+        }
+        if (pendentes < 3)
+            inserirPendente(conn, m.getId(), proximoHorario(conn, m.getId(), m.getFrequenciaHoras()));
+    }
+
+    private LocalDateTime proximoHorario(Connection conn, int medicamentoId, int frequencia) throws SQLException {
+        LocalDateTime agora = LocalDateTime.now();
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT MAX(horario_previsto) FROM dose WHERE medicamento_id = ?")) {
+            stmt.setInt(1, medicamentoId);
+            try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    pendentes = rs.getInt(1);
-                }
-            }
-        }
-
-        if (pendentes < 3) {
-            String sqlMax = "SELECT MAX(horario_previsto) FROM dose WHERE medicamento_id = ?";
-            LocalDateTime baseTime = LocalDateTime.now();
-            try (PreparedStatement stmtMax = conn.prepareStatement(sqlMax)) {
-                stmtMax.setInt(1, medicamentoId);
-                try (ResultSet rs = stmtMax.executeQuery()) {
-                    if (rs.next()) {
-                        String maxVal = rs.getString(1);
-                        LocalDateTime maxPrev = parseLocalDateTimeString(maxVal);
-                        if (maxPrev != null && maxPrev.isAfter(baseTime)) {
-                            baseTime = maxPrev;
-                        }
+                    LocalDateTime ultimo = lerData(rs.getString(1));
+                    if (ultimo != null) {
+                        LocalDateTime seguinte = ultimo.plusHours(frequencia);
+                        return seguinte.isAfter(agora) ? seguinte : agora.plusHours(frequencia);
                     }
                 }
             }
+        }
+        return agora;
+    }
 
-            LocalDateTime proxima = baseTime.plusHours(frequenciaHoras);
-            String sqlInsert = "INSERT INTO dose (medicamento_id, horario_previsto, horario_consumo, status_tomado) VALUES (?, ?, NULL, 0)";
-            try (PreparedStatement stmtInsert = conn.prepareStatement(sqlInsert)) {
-                stmtInsert.setInt(1, medicamentoId);
-                setTimestampParam(stmtInsert, 2, proxima);
-                stmtInsert.executeUpdate();
+    private void inserirAgenda(Connection conn, int medicamentoId, LocalDateTime inicio,
+                               int frequencia, int quantidade) throws SQLException {
+        for (int i = 0; i < quantidade; i++)
+            inserirPendente(conn, medicamentoId, inicio.plusHours((long) frequencia * i));
+    }
+
+    private int inserirPendente(Connection conn, int medicamentoId, LocalDateTime horario) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement("""
+                INSERT INTO dose (medicamento_id, horario_previsto, horario_consumo, status_tomado)
+                VALUES (?, ?, NULL, FALSE)
+                """, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setInt(1, medicamentoId);
+            stmt.setString(2, horario.format(SQL_DATE));
+            exigirUmaLinha(stmt.executeUpdate());
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (!rs.next()) throw new SQLException("Banco nao retornou o ID da dose.");
+                return rs.getInt(1);
             }
         }
     }
 
-    private void setTimestampParam(PreparedStatement stmt, int index, LocalDateTime ldt) throws SQLException {
-        if (ldt == null) {
-            stmt.setNull(index, java.sql.Types.TIMESTAMP);
-        } else {
-            stmt.setString(index, ldt.format(ISO_FORMATTER));
+    private Medicamento buscarMedicamento(Connection conn, int id, Integer pacienteId) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT * FROM medicamento WHERE id = ?" + (pacienteId == null ? "" : " AND usuario_id = ?"))) {
+            stmt.setInt(1, id);
+            if (pacienteId != null) stmt.setInt(2, pacienteId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) throw new IllegalArgumentException("Medicamento nao encontrado para o paciente.");
+                return new Medicamento(rs.getInt("id"), rs.getInt("usuario_id"), rs.getString("nome"),
+                        rs.getInt("quantidade_estoque"), rs.getInt("frequencia_horas"), rs.getInt("quantidade_por_dose"));
+            }
         }
     }
 
-    private Dose instanciarDose(ResultSet rs) throws SQLException {
-        LocalDateTime previsto = parseLocalDateTime(rs, "horario_previsto");
-        LocalDateTime consumo = parseLocalDateTime(rs, "horario_consumo");
-
-        return new Dose(
-                rs.getInt("id"),
-                rs.getInt("medicamento_id"),
-                rs.getString("nome_medicamento"),
-                previsto,
-                consumo,
-                rs.getBoolean("status_tomado")
-        );
-    }
-
-    private LocalDateTime parseLocalDateTime(ResultSet rs, String colName) throws SQLException {
-        String val = rs.getString(colName);
-        return parseLocalDateTimeString(val);
-    }
-
-    private LocalDateTime parseLocalDateTimeString(String val) {
-        if (val == null || val.trim().isEmpty()) {
-            return null;
+    private List<Dose> consultarDoses(String sql, int... parametros) throws SQLException {
+        List<Dose> resultado = new ArrayList<>();
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < parametros.length; i++) stmt.setInt(i + 1, parametros[i]);
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next())
+                    resultado.add(new Dose(rs.getInt("id"), rs.getInt("medicamento_id"),
+                            rs.getString("nome_medicamento"), lerData(rs.getString("horario_previsto")),
+                            lerData(rs.getString("horario_consumo")), rs.getBoolean("status_tomado")));
+            }
         }
-        val = val.trim();
+        return resultado;
+    }
+
+    private LocalDateTime lerData(String valor) throws SQLException {
+        if (valor == null || valor.isBlank()) return null;
         try {
-            if (val.contains(" ")) {
-                val = val.replace(" ", "T");
+            return LocalDateTime.parse(valor.trim().replace(' ', 'T'));
+        } catch (DateTimeParseException e) {
+            throw new SQLException("Data invalida armazenada no banco: " + valor, e);
+        }
+    }
+
+    private void validarTratamento(Medicamento m, int quantidadeDoses) {
+        Objects.requireNonNull(m, "Informe o medicamento.");
+        if (m.getUsuarioId() <= 0 || m.getNome() == null || m.getNome().isBlank()
+                || m.getNome().length() > 100 || m.getQuantidadeEstoque() < 0
+                || m.getFrequenciaHoras() <= 0 || m.getQuantidadePorDose() <= 0 || quantidadeDoses <= 0)
+            throw new IllegalArgumentException("Confira paciente, nome (ate 100 caracteres), estoque e posologia.");
+    }
+
+    private void exigirUmaLinha(int quantidade) throws SQLException {
+        if (quantidade != 1) throw new SQLException("A operacao nao alterou exatamente um registro.");
+    }
+
+    @FunctionalInterface
+    private interface Trabalho<T> {
+        T executar(Connection conn) throws SQLException;
+    }
+
+    private <T> T emTransacao(Trabalho<T> trabalho) throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                T resultado = trabalho.executar(conn);
+                conn.commit();
+                return resultado;
+            } catch (SQLException | RuntimeException e) {
+                try { conn.rollback(); } catch (SQLException rollback) { e.addSuppressed(rollback); }
+                throw e;
             }
-            if (val.length() == 16) {
-                val += ":00";
-            }
-            return LocalDateTime.parse(val);
-        } catch (Exception e) {
-            return null;
         }
     }
 }
