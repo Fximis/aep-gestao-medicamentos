@@ -1,10 +1,12 @@
+import auth.Autenticacao;
 import views.ConsoleView;
-import views.gui.MainWindow;
+import views.gui.LoginWindow;
+import views.gui.Tema;
+
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import java.awt.GraphicsEnvironment;
 
-/** Integra o menu de Carlos Henrique sem alterar o ponto de entrada da GUI existente. */
+/** Inicia o acesso autenticado na interface gráfica ou no console. */
 public class Main {
     public static void main(String[] args) {
         boolean console = GraphicsEnvironment.isHeadless();
@@ -16,12 +18,8 @@ public class Main {
             return;
         }
         SwingUtilities.invokeLater(() -> {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception ignored) {
-                // O tema padrao do Swing continua disponivel.
-            }
-            new MainWindow().setVisible(true);
+            Tema.instalar();
+            new LoginWindow(new Autenticacao()).setVisible(true);
         });
     }
 }

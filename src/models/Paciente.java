@@ -13,14 +13,14 @@ public class Paciente extends Usuario {
     private String condicaoMedica;
     private final List<Medicamento> medicamentos;
 
-    public Paciente(int id, String nome, String email, String senha, String condicaoMedica) {
-        super(id, nome, email, senha);
+    public Paciente(int id, String nome, String email, String condicaoMedica) {
+        super(id, nome, email);
         this.condicaoMedica = condicaoMedica;
         this.medicamentos = new ArrayList<>();
     }
 
-    public Paciente(String nome, String email, String senha, String condicaoMedica) {
-        this(0, nome, email, senha, condicaoMedica);
+    public Paciente(String nome, String email, String condicaoMedica) {
+        this(0, nome, email, condicaoMedica);
     }
 
     @Override

@@ -1,30 +1,26 @@
-# Diretrizes de Banco de Dados — 2ª Entrega da AEP
+# Banco de dados da segunda entrega
 
-Este diretório contém os artefatos de persistência relacional do sistema de gestão de medicamentos.
+A aplicação usa JDBC com os drivers MySQL e SQLite incluídos em `lib/`.
 
----
+| Tabela | Conteúdo |
+| --- | --- |
+| `usuario` | Identidade, perfil e hash da senha. |
+| `medicamento` | Estoque e posologia associados ao paciente. |
+| `dose` | Agenda, confirmações e horário real de consumo. |
+| `acesso_familiar` | Vínculos de leitura autorizados pelo paciente. |
 
-## 🗄️ Estrutura e Arquivos
+## SQLite
 
-* **`schema.sql`**: Script DDL completo contendo:
-  - Criação da base de dados relacional (`gestao_medicamentos`).
-  - Criação das tabelas com integridade referencial (Primary Keys, Foreign Keys, `ON DELETE CASCADE` e constraints):
-    - `usuario`: Tabela com herança via Single Table Pattern (`tipo` discrimina `PACIENTE` e `RESPONSAVEL`).
-    - `medicamento`: Tabela principal com estoque físico, frequência de doses e dosagem.
-    - `dose`: Tabela de agendamento de doses, horários de consumo e confirmação.
-  - Carga inicial de dados (*Seed*) para agilizar a validação e demonstração.
+A aplicação cria o arquivo `database/gestao_medicamentos.db` e as tabelas na primeira conexão. Crie as contas pelo formulário de cadastro. Para escolher esse modo explicitamente, defina `AEP_BANCO=sqlite` no ambiente.
 
----
+## MySQL
 
-## ⚙️ Modos de Conexão Suportados (JDBC)
+Importe `database/schema.sql` no MySQL local. O esquema usa o banco `gestao_medicamentos` na porta 3306.
 
-O sistema foi concebido com resiliência total para o ambiente de avaliação:
+```sh
+mysql -u root -p -e "source database/schema.sql"
+```
 
-1. **MySQL 8.x (Padrão Recomendado):**
-   - Configurado para `localhost:3306`, usuário `root` e senha em branco (padrão de ferramentas como Laragon e XAMPP).
-   - Para importar o schema no MySQL:
-     ```powershell
-     mysql -u root -p < database/schema.sql
-     ```
-2. **Banco Relacional Embutido (SQLite):**
-   - Se o servidor MySQL não estiver em execução, o sistema ativa automaticamente a conexão JDBC via SQLite (`database/gestao_medicamentos.db`), inicializando as tabelas e dados de teste sem que o avaliador precise instalar ou configurar serviços de banco de dados.
+Defina `AEP_BANCO=mysql`, `AEP_MYSQL_USER` e `AEP_MYSQL_PASSWORD` no ambiente de execução. O modo `auto`, usado por padrão, tenta MySQL e seleciona SQLite se a conexão inicial estiver indisponível. A seleção permanece durante a execução.
+
+A inicialização migra credenciais antigas e prepara a tabela de acesso familiar. Consulte a decisão de migração e os limites de operação. [ADR-005](../docs/adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)

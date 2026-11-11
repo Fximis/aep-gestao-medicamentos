@@ -1,168 +1,137 @@
 package config;
 
-import java.io.File;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import dao.UsuarioDAO;
 
-/**
- * Gerenciador centralizado de conexão com Banco de Dados Relacional via JDBC.
- * Prioriza conexão ativa com MySQL (porta padrão 3306).
- * Caso o servidor MySQL não esteja em execução, ativa automaticamente o banco relacional
- * embutido (SQLite) para garantir 100% de execução e evitar falhas no ambiente de avaliação.
- */
-public class DatabaseConnection {
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.io.IOException;
+import java.sql.*;
+import java.util.Locale;
 
-    // Configuração padrão para MySQL (Laragon / XAMPP / Localhost)
-    private static final String MYSQL_URL = "jdbc:mysql://localhost:3306/gestao_medicamentos?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
-    private static final String MYSQL_USER = "root";
-    private static final String MYSQL_PASS = "";
-
-    // Configuração para banco relacional SQLite (fallback local)
+/** Escolhe o banco da execução e inicializa o esquema e as credenciais. */
+public final class DatabaseConnection {
+    private static final String MYSQL_URL = "jdbc:mysql://localhost:3306/gestao_medicamentos"
+            + "?serverTimezone=UTC&connectTimeout=2000";
     private static final String SQLITE_URL = "jdbc:sqlite:database/gestao_medicamentos.db";
 
-    private static Boolean preferSQLite = null;
-    private static boolean schemaInicializado = false;
+    private static Boolean preferSQLite;
+    private static boolean schemaInicializado;
 
-    private DatabaseConnection() {
-    }
+    private DatabaseConnection() { }
 
-    /**
-     * Retorna uma nova conexão ativa com o banco de dados.
-     */
     public static synchronized Connection getConnection() throws SQLException {
-        // Se já foi determinado que o MySQL está offline, conecta direto ao SQLite
-        if (Boolean.TRUE.equals(preferSQLite)) {
-            return conectarSQLite();
-        }
-
-        // 1ª Tentativa: Conectar ao MySQL
+        Connection conn = abrirBanco();
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver");
-            Connection conn = DriverManager.getConnection(MYSQL_URL, MYSQL_USER, MYSQL_PASS);
-            if (preferSQLite == null) {
-                preferSQLite = false;
-                System.out.println("[BD INFO] Conexão ativa estabelecida com MySQL (localhost:3306).");
+            if (Boolean.TRUE.equals(preferSQLite)) {
+                try (Statement stmt = conn.createStatement()) {
+                    stmt.execute("PRAGMA foreign_keys = ON");
+                    stmt.execute("PRAGMA secure_delete = ON");
+                }
+            }
+            if (!schemaInicializado) {
+                inicializarSchema(conn);
+                schemaInicializado = true;
             }
             return conn;
-        } catch (ClassNotFoundException | SQLException e) {
-            if (preferSQLite == null) {
-                preferSQLite = true;
-                System.out.println("[BD AVISO] Servidor MySQL local nao detectado.");
-                System.out.println("[BD INFO] Ativando Banco de Dados Relacional SQLite ('database/gestao_medicamentos.db')...");
-            }
-            return conectarSQLite();
+        } catch (SQLException | RuntimeException e) {
+            try { conn.close(); } catch (SQLException fechamento) { e.addSuppressed(fechamento); }
+            throw e;
         }
+    }
+
+    private static Connection abrirBanco() throws SQLException {
+        if (preferSQLite != null) return preferSQLite ? conectarSQLite() : conectarMySQL();
+
+        String modo = System.getProperty("aep.banco", ambiente("AEP_BANCO", "auto")).toLowerCase(Locale.ROOT);
+        if ("sqlite".equals(modo)) {
+            Connection conn = conectarSQLite();
+            preferSQLite = true;
+            return conn;
+        }
+        if (!"mysql".equals(modo) && !"auto".equals(modo)) {
+            throw new SQLException("AEP_BANCO deve ser auto, mysql ou sqlite.");
+        }
+        try {
+            Connection conn = conectarMySQL();
+            preferSQLite = false;
+            return conn;
+        } catch (SQLException e) {
+            if ("mysql".equals(modo)) throw e;
+            Connection conn = conectarSQLite();
+            preferSQLite = true;
+            return conn;
+        }
+    }
+
+    private static Connection conectarMySQL() throws SQLException {
+        return DriverManager.getConnection(MYSQL_URL, ambiente("AEP_MYSQL_USER", "root"),
+                ambiente("AEP_MYSQL_PASSWORD", ""));
     }
 
     private static Connection conectarSQLite() throws SQLException {
         try {
-            Class.forName("org.sqlite.JDBC");
-            File dbDir = new File("database");
-            if (!dbDir.exists()) {
-                dbDir.mkdirs();
-            }
-            Connection conn = DriverManager.getConnection(SQLITE_URL);
-            if (!schemaInicializado) {
-                inicializarSchemaSQLite(conn);
-                schemaInicializado = true;
-                System.out.println("[BD INFO] Banco de Dados Relacional SQLite pronto e conectado.");
-            }
-            return conn;
-        } catch (ClassNotFoundException e) {
-            throw new SQLException("Driver JDBC SQLite não encontrado na pasta lib/.", e);
+            Files.createDirectories(Path.of("database"));
+        } catch (IOException e) {
+            throw new SQLException("Não foi possível preparar o diretório do SQLite.", e);
         }
+        return DriverManager.getConnection(SQLITE_URL);
+    }
+
+    private static String ambiente(String nome, String padrao) {
+        String valor = System.getenv(nome);
+        return valor == null ? padrao : valor;
     }
 
     public static boolean isUsingSQLite() {
         return Boolean.TRUE.equals(preferSQLite);
     }
 
-    /**
-     * Cria as tabelas e a carga inicial no SQLite caso seja a primeira execução.
-     */
-    private static void inicializarSchemaSQLite(Connection conn) {
+    private static void inicializarSchema(Connection conn) throws SQLException {
         try (Statement stmt = conn.createStatement()) {
-            // Tabela de Usuário
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS usuario (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "nome TEXT NOT NULL, " +
-                    "email TEXT UNIQUE NOT NULL, " +
-                    "senha TEXT NOT NULL, " +
-                    "tipo TEXT NOT NULL, " +
-                    "condicao_medica TEXT, " +
-                    "vinculo_familiar TEXT);");
-
-            // Tabela de Medicamento
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS medicamento (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "usuario_id INTEGER NOT NULL, " +
-                    "nome TEXT NOT NULL, " +
-                    "quantidade_estoque INTEGER NOT NULL DEFAULT 0, " +
-                    "frequencia_horas INTEGER NOT NULL, " +
-                    "quantidade_por_dose INTEGER NOT NULL DEFAULT 1, " +
-                    "FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE CASCADE);");
-
-            // Tabela de Dose
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS dose (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "medicamento_id INTEGER NOT NULL, " +
-                    "horario_previsto TEXT NOT NULL, " +
-                    "horario_consumo TEXT, " +
-                    "status_tomado INTEGER NOT NULL DEFAULT 0, " +
-                    "FOREIGN KEY (medicamento_id) REFERENCES medicamento(id) ON DELETE CASCADE);");
-
-            // Seed inicial se a base estiver vazia
-            var rs = stmt.executeQuery("SELECT COUNT(*) AS total FROM usuario;");
-            if (rs.next() && rs.getInt("total") == 0) {
-                stmt.executeUpdate("INSERT INTO usuario (id, nome, email, senha, tipo, condicao_medica, vinculo_familiar) VALUES " +
-                        "(1, 'Joao da Silva', 'joao@email.com', '123456', 'PACIENTE', 'Hipertensao e Diabetes Tipo 2', NULL), " +
-                        "(2, 'Maria Silva Santos', 'maria@email.com', '123456', 'RESPONSAVEL', NULL, 'Filha e Cuidadora');");
-
-                stmt.executeUpdate("INSERT INTO medicamento (id, usuario_id, nome, quantidade_estoque, frequencia_horas, quantidade_por_dose) VALUES " +
-                        "(101, 1, 'Losartana Potassica 50mg', 10, 12, 1), " +
-                        "(102, 1, 'Cloridrato de Metformina 850mg', 60, 8, 1);");
-
-                java.time.LocalDateTime agora = java.time.LocalDateTime.now();
-                java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                String d1 = agora.minusMinutes(30).format(fmt);
-                String d2 = agora.plusHours(11).plusMinutes(30).format(fmt);
-                String d3 = agora.minusMinutes(15).format(fmt);
-                String d4 = agora.plusHours(7).plusMinutes(45).format(fmt);
-                String d5 = agora.plusHours(15).plusMinutes(45).format(fmt);
-
-                stmt.executeUpdate(String.format(
-                        "INSERT INTO dose (id, medicamento_id, horario_previsto, horario_consumo, status_tomado) VALUES " +
-                        "(1001, 101, '%s', NULL, 0), " +
-                        "(1002, 101, '%s', NULL, 0), " +
-                        "(1003, 102, '%s', NULL, 0), " +
-                        "(1004, 102, '%s', NULL, 0), " +
-                        "(1005, 102, '%s', NULL, 0);",
-                        d1, d2, d3, d4, d5));
+            if (isUsingSQLite()) {
+                stmt.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS usuario (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            nome TEXT NOT NULL, email TEXT NOT NULL UNIQUE, senha TEXT NOT NULL,
+                            tipo TEXT NOT NULL, condicao_medica TEXT, vinculo_familiar TEXT
+                        )
+                        """);
+                stmt.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS medicamento (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            usuario_id INTEGER NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+                            nome TEXT NOT NULL, quantidade_estoque INTEGER NOT NULL DEFAULT 0,
+                            frequencia_horas INTEGER NOT NULL, quantidade_por_dose INTEGER NOT NULL DEFAULT 1
+                        )
+                        """);
+                stmt.executeUpdate("""
+                        CREATE TABLE IF NOT EXISTS dose (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            medicamento_id INTEGER NOT NULL REFERENCES medicamento(id) ON DELETE CASCADE,
+                            horario_previsto TEXT NOT NULL, horario_consumo TEXT,
+                            status_tomado INTEGER NOT NULL DEFAULT 0
+                        )
+                        """);
             }
-        } catch (SQLException e) {
-            System.err.println("[BD ERRO] Falha ao inicializar tabelas: " + e.getMessage());
+            stmt.executeUpdate("""
+                    CREATE TABLE IF NOT EXISTS acesso_familiar (
+                        paciente_id INTEGER NOT NULL,
+                        responsavel_id INTEGER NOT NULL,
+                        PRIMARY KEY (paciente_id, responsavel_id),
+                        FOREIGN KEY (paciente_id) REFERENCES usuario(id) ON DELETE CASCADE,
+                        FOREIGN KEY (responsavel_id) REFERENCES usuario(id) ON DELETE CASCADE
+                    )
+                    """);
         }
-    }
-
-    /**
-     * Reinicializa o banco SQLite com a carga limpa de demonstracao da AEP.
-     */
-    public static synchronized void reiniciarBaseDemonstracao() {
-        File dbFile = new File("database/gestao_medicamentos.db");
-        if (dbFile.exists()) {
-            dbFile.delete();
+        conn.setAutoCommit(false);
+        try {
+            UsuarioDAO.migrarCredenciais(conn);
+            conn.commit();
+        } catch (SQLException | RuntimeException e) {
+            try { conn.rollback(); } catch (SQLException rollback) { e.addSuppressed(rollback); }
+            throw e;
+        } finally {
+            conn.setAutoCommit(true);
         }
-        schemaInicializado = false;
-        try (Connection conn = conectarSQLite()) {
-            // Recria e popula
-        } catch (SQLException e) {
-            System.err.println("[BD ERRO] Falha ao reiniciar base: " + e.getMessage());
-        }
-    }
-
-    public static void closeConnection() {
-        // Conexões são gerenciadas por try-with-resources nos DAOs
     }
 }

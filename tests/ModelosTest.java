@@ -91,7 +91,7 @@ public class ModelosTest {
     }
 
     private static void testarPaciente() {
-        Paciente p = new Paciente("Ana", "ana@example.com", "teste", "Teste");
+        Paciente p = new Paciente("Ana", "ana@example.com", "Teste");
         Medicamento m = new Medicamento(1, "Teste", 10, 12, 1);
         List<Medicamento> entrada = new ArrayList<>(List.of(m));
         p.setMedicamentos(entrada);
@@ -110,12 +110,14 @@ public class ModelosTest {
     }
 
     private static void testarHerancaEDose() {
-        Usuario paciente = new Paciente("Ana", "ana@example.com", "teste", "Teste");
-        Usuario responsavel = new Responsavel("Bia", "bia@example.com", "teste", "Filha");
+        Usuario paciente = new Paciente("Ana", "ana@example.com", "Teste");
+        Usuario responsavel = new Responsavel("Bia", "bia@example.com", "Filha");
         verificar(paciente.obterTipo().equals("PACIENTE"), "Polimorfismo de paciente");
         verificar(responsavel.obterTipo().equals("RESPONSAVEL"), "Polimorfismo de responsável");
-        verificar(paciente.autenticar("ANA@example.com", "teste"), "Autenticação usa atributos encapsulados");
-        verificar(!paciente.autenticar("ana@example.com", "incorreta"), "Senha incorreta rejeitada");
+        verificar(paciente.getEmail().equals("ana@example.com"), "Perfil preserva o e-mail");
+        verificar(Arrays.stream(Usuario.class.getDeclaredFields())
+                .noneMatch(campo -> campo.getName().toLowerCase(java.util.Locale.ROOT).contains("senha")),
+                "Credenciais não são expostas pelo perfil");
         Dose dose = new Dose(1, LocalDateTime.now().minusMinutes(1));
         verificar(!dose.isStatusTomado() && dose.getHorarioConsumo() == null, "Dose começa pendente");
         dose.marcarComoTomada();

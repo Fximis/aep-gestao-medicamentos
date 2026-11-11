@@ -1,16 +1,17 @@
 package views;
 
 import dao.DoseDAO;
-import dao.GenericDAO;
+import auth.Autenticacao;
+import dao.FamiliarDAO;
 import dao.MedicamentoDAO;
-import dao.UsuarioDAO;
 import models.Dose;
 import models.Medicamento;
 import models.Paciente;
-import models.Responsavel;
 import models.Usuario;
 
+import java.io.Console;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -25,17 +26,23 @@ import java.util.Scanner;
 public class ConsoleView {
     private static final DateTimeFormatter DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private final Scanner scanner;
+    private final Console terminal;
+    private final boolean entradaInjetada;
     private final MedicamentoDAO medicamentoDAO = new MedicamentoDAO();
-    private final GenericDAO<Medicamento> medicamentos = medicamentoDAO;
     private final DoseDAO doses = new DoseDAO();
-    private final UsuarioDAO usuarios = new UsuarioDAO();
+    private final Autenticacao autenticacao = new Autenticacao();
+    private final FamiliarDAO familia = new FamiliarDAO();
 
     public ConsoleView() {
-        this(new Scanner(System.in));
+        terminal = System.console();
+        scanner = terminal == null ? new Scanner(System.in) : null;
+        entradaInjetada = false;
     }
 
     public ConsoleView(Scanner scanner) {
         this.scanner = Objects.requireNonNull(scanner);
+        terminal = null;
+        entradaInjetada = true;
     }
 
     /** Tambem permite executar diretamente: java ... views.ConsoleView */
@@ -45,64 +52,121 @@ public class ConsoleView {
 
     public void iniciar() {
         try {
-            List<Paciente> pacientes = usuarios.listarPacientes();
-            if (pacientes.isEmpty()) {
-                erro("Nenhum paciente cadastrado. Execute a carga inicial do projeto.");
-                return;
-            }
-            // Sessao local de demonstracao: usa um paciente real do banco, nunca um objeto ficticio.
-            Paciente paciente = pacientes.get(0);
-            if (pacientes.size() > 1) {
-                System.out.println("Selecione o paciente da demonstracao:");
-                for (int i = 0; i < pacientes.size(); i++)
-                    System.out.printf("[%d] %s%n", i + 1, pacientes.get(i).getNome());
-                paciente = pacientes.get(lerInteiro("Paciente: ", 1, pacientes.size()) - 1);
-            }
-            Responsavel responsavel = usuarios.listarTodos().stream()
-                    .filter(Responsavel.class::isInstance).map(Responsavel.class::cast)
-                    .findFirst().orElse(null);
-            executar(paciente, responsavel);
-        } catch (NoSuchElementException e) {
-            System.out.println("\nEntrada encerrada. Nenhuma operacao incompleta foi confirmada.");
-        } catch (SQLException e) {
-            erro("Nao foi possivel abrir a sessao no banco: " + e.getMessage());
-        }
-    }
-
-    public void executar(Paciente paciente, Responsavel responsavel) {
-        try {
             while (true) {
-                System.out.println("\n=== GESTAO DE MEDICAMENTOS ===");
-                System.out.println("Paciente: " + paciente.getNome());
+                System.out.println("\n=== CUIDADO DIÁRIO ===");
+                System.out.println("[1] Entrar  [2] Criar conta  [0] Encerrar aplicativo");
+                int opcao = lerInteiro("Opção: ", 0, 2);
+                if (opcao == 0) return;
                 try {
-                    long pendentes = doses.listarPendentesPorPaciente(paciente.getId()).stream()
-                            .filter(d -> !d.getHorarioPrevisto().isAfter(LocalDateTime.now())).count();
-                    System.out.println("Lembrete: " + pendentes + " dose(s) pendente(s) com horario atingido.");
-                    for (Medicamento m : listarDoPaciente(paciente.getId()))
-                        if (m.verificarAlertaRecompra()) exibirAlerta(m);
-                    int opcao = exibirMenuPrincipal();
-                    if (opcao == 0) {
-                        System.out.println("Aplicacao encerrada.");
-                        return;
-                    }
-                    switch (opcao) {
-                        case 1 -> cadastrar(paciente.getId());
-                        case 2 -> exibirMedicamentos(listarDoPaciente(paciente.getId()));
-                        case 3 -> atualizar(paciente.getId());
-                        case 4 -> ajustarEstoque(paciente.getId());
-                        case 5 -> excluir(paciente.getId());
-                        case 6 -> confirmarDose(paciente.getId());
-                        case 7 -> exibirCuidador(paciente, responsavel);
-                        default -> erro("Opcao invalida.");
-                    }
-                } catch (SQLException e) {
-                    erro("Operacao nao concluida no banco: " + e.getMessage());
+                    if (opcao == 2) cadastrarConta();
+                    else entrar();
                 } catch (IllegalArgumentException | IllegalStateException e) {
                     erro(e.getMessage());
+                } catch (SQLException e) {
+                    erro("Não foi possível acessar o banco. Tente novamente.");
                 }
             }
         } catch (NoSuchElementException e) {
-            System.out.println("\nEntrada encerrada. Retorne ao programa para continuar.");
+            System.out.println("\nEntrada encerrada. Nenhuma operação incompleta foi confirmada.");
+        }
+    }
+
+    private void entrar() throws SQLException {
+        String email = lerTexto("E-mail: ");
+        char[] senha = lerSenha("Senha: ");
+        Autenticacao.Sessao sessao;
+        try {
+            sessao = autenticacao.entrar(email, senha);
+        } finally {
+            Arrays.fill(senha, '\0');
+        }
+        try {
+            if (sessao.usuario() instanceof Paciente paciente) executarPaciente(sessao, paciente);
+            else executarResponsavel(sessao);
+        } finally {
+            sessao.encerrar();
+        }
+    }
+
+    private void cadastrarConta() throws SQLException {
+        String nome = lerNome("Nome completo: ");
+        String email = lerTexto("E-mail: ");
+        int opcao = lerInteiro("Perfil [1] Paciente [2] Responsável: ", 1, 2);
+        Autenticacao.Perfil perfil = opcao == 1 ? Autenticacao.Perfil.PACIENTE : Autenticacao.Perfil.RESPONSAVEL;
+        String detalhe = lerTexto(opcao == 1 ? "Condição médica (opcional): " : "Vínculo familiar (opcional): ");
+        char[] senha = lerSenha("Senha (15 a 128 caracteres): ");
+        char[] confirmacao = new char[0];
+        try {
+            confirmacao = lerSenha("Confirme a senha: ");
+            autenticacao.cadastrar(nome, email, perfil, detalhe, senha, confirmacao);
+            sucesso("Conta criada. Entre com seu e-mail e senha.");
+        } finally {
+            Arrays.fill(senha, '\0');
+            Arrays.fill(confirmacao, '\0');
+        }
+    }
+
+    private void executarPaciente(Autenticacao.Sessao sessao, Paciente paciente) {
+        while (true) {
+            System.out.println("\n=== GESTAO DE MEDICAMENTOS ===");
+            System.out.println("Paciente: " + paciente.getNome());
+            try {
+                long pendentes = doses.listarPendentesPorPaciente(paciente.getId()).stream()
+                        .filter(d -> !d.getHorarioPrevisto().isAfter(LocalDateTime.now())).count();
+                System.out.println("Lembrete: " + pendentes + " dose(s) pendente(s) com horario atingido.");
+                for (Medicamento m : listarDoPaciente(paciente.getId()))
+                    if (m.verificarAlertaRecompra()) exibirAlerta(m);
+                int opcao = exibirMenuPrincipal();
+                if (opcao == 0) return;
+                switch (opcao) {
+                    case 1 -> cadastrar(paciente.getId());
+                    case 2 -> exibirMedicamentos(listarDoPaciente(paciente.getId()));
+                    case 3 -> atualizar(paciente.getId());
+                    case 4 -> ajustarEstoque(paciente.getId());
+                    case 5 -> excluir(paciente.getId());
+                    case 6 -> confirmarDose(paciente.getId());
+                    case 7 -> gerenciarAcessos(sessao);
+                    case 8 -> alterarSenha(sessao);
+                    default -> erro("Opcao invalida.");
+                }
+            } catch (SQLException e) {
+                erro("Operação não concluída no banco.");
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                erro(e.getMessage());
+            }
+        }
+    }
+
+    private void executarResponsavel(Autenticacao.Sessao sessao) {
+        while (true) {
+            System.out.println("\n=== ACOMPANHAMENTO FAMILIAR ===");
+            System.out.println("Responsável: " + sessao.usuario().getNome());
+            int opcao = lerInteiro("[1] Consultar paciente [2] Alterar senha [0] Sair da conta: ", 0, 2);
+            if (opcao == 0) return;
+            try {
+                if (opcao == 1) consultarPaciente(sessao);
+                else alterarSenha(sessao);
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                erro(e.getMessage());
+            } catch (SQLException e) {
+                erro("Operação não concluída no banco.");
+            }
+        }
+    }
+
+    private void alterarSenha(Autenticacao.Sessao sessao) throws SQLException {
+        char[] atual = lerSenha("Senha atual: ");
+        char[] nova = new char[0];
+        char[] confirmacao = new char[0];
+        try {
+            nova = lerSenha("Nova senha (15 a 128 caracteres): ");
+            confirmacao = lerSenha("Confirme a nova senha: ");
+            autenticacao.alterarSenha(sessao, atual, nova, confirmacao);
+            sucesso("Senha atualizada.");
+        } finally {
+            Arrays.fill(atual, '\0');
+            Arrays.fill(nova, '\0');
+            Arrays.fill(confirmacao, '\0');
         }
     }
 
@@ -113,9 +177,10 @@ public class ConsoleView {
         System.out.println("[4] Ajustar Estoque Manualmente (Update de Estoque)");
         System.out.println("[5] Excluir Medicamento (Delete)");
         System.out.println("[6] Confirmar Dose Tomada (Baixa + Alerta se <= 5 dias)");
-        System.out.println("[7] Visao do Responsavel / Cuidador");
-        System.out.println("[0] Sair");
-        return lerInteiro("Opcao: ", 0, 7);
+        System.out.println("[7] Gerenciar acesso familiar");
+        System.out.println("[8] Alterar senha");
+        System.out.println("[0] Sair da conta");
+        return lerInteiro("Opcao: ", 0, 8);
     }
 
     private void cadastrar(int pacienteId) throws SQLException {
@@ -160,7 +225,7 @@ public class ConsoleView {
             doses.atualizarNome(m);
         }
         sucesso("Medicamento atualizado.");
-        exibirMedicamentos(List.of(medicamentos.buscarPorId(m.getId())));
+        exibirMedicamentos(List.of(medicamentoDAO.buscarPorId(m.getId(), pacienteId)));
     }
 
     private void ajustarEstoque(int pacienteId) throws SQLException {
@@ -169,16 +234,16 @@ public class ConsoleView {
         int novo = lerInteiro("Novo total fisico em estoque (substitui o anterior): ", 0, Integer.MAX_VALUE);
         m.setQuantidadeEstoque(novo); // A validacao RN04 permanece no modelo do Lucas.
         if (!confirmar("Confirmar estoque de " + novo + " unidade(s)?")) return;
-        medicamentoDAO.atualizarEstoque(m.getId(), novo);
+        medicamentoDAO.atualizarEstoque(m.getId(), novo, pacienteId);
         sucesso("Estoque ajustado.");
-        exibirMedicamentos(List.of(medicamentos.buscarPorId(m.getId())));
+        exibirMedicamentos(List.of(medicamentoDAO.buscarPorId(m.getId(), pacienteId)));
     }
 
     private void excluir(int pacienteId) throws SQLException {
         Medicamento m = selecionarMedicamento(pacienteId);
         if (m == null) return;
         if (!confirmar("Excluir '" + m.getNome() + "' e TODO o historico de doses?")) return;
-        medicamentos.excluir(m.getId());
+        medicamentoDAO.excluir(m.getId(), pacienteId);
         sucesso("Medicamento e doses excluidos.");
     }
 
@@ -204,25 +269,43 @@ public class ConsoleView {
         exibirMedicamentos(List.of(atualizado));
     }
 
-    private void exibirCuidador(Paciente paciente, Responsavel responsavel) throws SQLException {
-        if (responsavel == null) {
-            System.out.println("Nenhum responsavel cadastrado.");
+    private void gerenciarAcessos(Autenticacao.Sessao sessao) throws SQLException {
+        List<Usuario> autorizados = familia.listarResponsaveis(sessao);
+        if (autorizados.isEmpty()) System.out.println("Nenhum responsável autorizado.");
+        for (int i = 0; i < autorizados.size(); i++)
+            System.out.printf("[%d] %s%n", i + 1, autorizados.get(i));
+        int opcao = lerInteiro("[1] Autorizar [2] Revogar [0] Voltar: ", 0, 2);
+        if (opcao == 1) {
+            String email = lerTexto("E-mail do responsável: ");
+            if (confirmar("Autorizar consulta de medicamentos e doses para " + email + "?")) {
+                familia.autorizar(sessao, email);
+                sucesso("Acesso de leitura concedido.");
+            }
+        } else if (opcao == 2 && !autorizados.isEmpty()) {
+            Usuario alvo = autorizados.get(lerInteiro("Responsável: ", 1, autorizados.size()) - 1);
+            familia.revogar(sessao, alvo.getId());
+            sucesso("Acesso revogado.");
+        }
+    }
+
+    private void consultarPaciente(Autenticacao.Sessao sessao) throws SQLException {
+        List<Usuario> pacientes = familia.listarPacientes(sessao);
+        if (pacientes.isEmpty()) {
+            System.out.println("Nenhum paciente autorizou o acompanhamento.");
             return;
         }
-        // RN08: consentimento explicito para esta visualizacao local. Nao simula login/permissoes persistidas.
-        if (!confirmar("Paciente " + paciente.getNome() + " autoriza " +
-                responsavel.getNome() + " a visualizar os dados nesta sessao?")) return;
-        System.out.println("\nCUIDADOR: " + responsavel.getNome() + " | " + responsavel.getVinculoFamiliar());
-        exibirMedicamentos(listarDoPaciente(paciente.getId()));
-        System.out.println("DOSES PENDENTES:");
-        for (Dose d : doses.listarPendentesPorPaciente(paciente.getId()))
-            System.out.printf("ID %d | %s | %s | PENDENTE%n", d.getId(),
-                    d.getNomeMedicamento(), d.getHorarioPrevisto().format(DATA));
-        System.out.println("HISTORICO RECENTE (ate 20 doses, horario REAL de consumo):");
-        for (Dose d : doses.listarHistoricoRecente(paciente.getId(), 20))
-            System.out.printf("ID %d | %s | Consumida: %s%n", d.getId(),
-                    d.getNomeMedicamento(), d.getHorarioConsumo().format(DATA));
-        System.out.println("Alertas disponiveis neste console. Nao ha envio de SMS ou mensagens externas.");
+        for (int i = 0; i < pacientes.size(); i++)
+            System.out.printf("[%d] %s%n", i + 1, pacientes.get(i));
+        int escolha = lerInteiro("Paciente (0 volta): ", 0, pacientes.size());
+        if (escolha == 0) return;
+        FamiliarDAO.Acompanhamento resumo = familia.consultar(sessao, pacientes.get(escolha - 1).getId());
+        System.out.println("Paciente: " + resumo.paciente().getNome());
+        exibirMedicamentos(resumo.medicamentos());
+        System.out.println("HORÁRIOS E HISTÓRICO DE DOSES:");
+        for (Dose dose : resumo.doses()) {
+            System.out.printf("%s | %s | %s%n", dose.getNomeMedicamento(), dose.getHorarioPrevistoFormatado(),
+                    dose.isStatusTomado() ? "Confirmada " + dose.getHorarioConsumoFormatado() : "Pendente");
+        }
     }
 
     private List<Medicamento> listarDoPaciente(int pacienteId) throws SQLException {
@@ -235,8 +318,8 @@ public class ConsoleView {
         if (lista.isEmpty()) return null;
         int id = lerInteiro("ID do medicamento (0 cancela): ", 0, Integer.MAX_VALUE);
         if (id == 0) return null;
-        Medicamento m = medicamentos.buscarPorId(id);
-        if (m == null || m.getUsuarioId() != pacienteId)
+        Medicamento m = medicamentoDAO.buscarPorId(id, pacienteId);
+        if (m == null)
             throw new IllegalArgumentException("Medicamento nao encontrado para este paciente.");
         return m;
     }
@@ -257,9 +340,27 @@ public class ConsoleView {
     }
 
     private String lerTexto(String prompt) {
+        if (terminal != null) {
+            String texto = terminal.readLine("%s", prompt);
+            if (texto == null) throw new NoSuchElementException("Fim da entrada.");
+            return texto.strip();
+        }
         System.out.print(prompt);
         if (!scanner.hasNextLine()) throw new NoSuchElementException("Fim da entrada.");
-        return scanner.nextLine().trim();
+        return scanner.nextLine().strip();
+    }
+
+    private char[] lerSenha(String prompt) {
+        if (terminal != null) {
+            char[] senha = terminal.readPassword("%s", prompt);
+            if (senha == null) throw new NoSuchElementException("Fim da entrada.");
+            return senha;
+        }
+        if (!entradaInjetada) throw new IllegalStateException(
+                "Abra o programa em um terminal interativo para digitar a senha sem exibi-la.");
+        System.out.print(prompt);
+        if (!scanner.hasNextLine()) throw new NoSuchElementException("Fim da entrada.");
+        return scanner.nextLine().toCharArray();
     }
 
     private String lerNome(String prompt) {

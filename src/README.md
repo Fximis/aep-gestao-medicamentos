@@ -4,10 +4,11 @@ Este diretório contém a implementação completa da **2ª Entrega da AEP (Soft
 
 ---
 
-## 🏛️ Estrutura de Pacotes
+## Estrutura de Pacotes
 
 ```text
 src/
+├── auth/                          # Cadastro, sessão e hash de senha
 ├── config/
 │   └── DatabaseConnection.java    # Singleton/Factory de conexão JDBC ativa (MySQL / SQLite)
 │
@@ -15,7 +16,8 @@ src/
 │   ├── GenericDAO.java            # Interface genérica de persistência (Pilar de Abstração)
 │   ├── MedicamentoDAO.java        # CRUD completo da entidade principal (Create, Read, Update, Delete)
 │   ├── DoseDAO.java               # Agendamento, baixa de estoque e transação ACID
-│   └── UsuarioDAO.java            # Persistência de Paciente e Responsável (Single Table)
+│   ├── UsuarioDAO.java            # Persistência de perfis e credenciais
+│   └── FamiliarDAO.java           # Consentimento e consulta autorizada
 │
 ├── models/
 │   ├── Usuario.java               # Classe Abstrata (Abstração / Encapsulamento)
@@ -25,13 +27,14 @@ src/
 │   └── Dose.java                  # Horários de consumo, data/hora e confirmação ativa
 │
 ├── views/
-│   └── ConsoleView.java           # Interface de Linha de Comando (CLI) interativa via terminal
+│   ├── ConsoleView.java           # Acesso e operações em terminal
+│   └── gui/                       # Formulários de conta e painéis Swing
 │
 └── Main.java                      # Ponto de entrada (Bootstrap), orquestrador do loop e menus
 ```
 
 ---
 
-## 🚀 Como Compilar e Executar
+## Como Compilar e Executar
 
 Consulte o arquivo [`README.md`](../README.md) na raiz do projeto para os comandos passo a passo de compilação via terminal PowerShell ou CMD.

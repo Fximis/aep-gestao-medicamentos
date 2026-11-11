@@ -3,6 +3,8 @@
 **Status:** Vigente, com revisão dos itens 1 e 2 pelo [ADR-004](2026-11-10-adr-004-encapsulamento-autonomia-e-evolucao-visual.md)  
 **Data:** 2026-11-10  
 
+A abertura da interface passa pela autenticação descrita no [ADR-005](2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md).
+
 ---
 
 ## Contexto
@@ -14,10 +16,10 @@ A utilização exclusiva de terminal de linha de comando (CLI) impõe uma barrei
 Implementar uma interface gráfica desktop interativa nativa utilizando **Java Swing** (`javax.swing.*` e `java.awt.*`), padronizada sob o nome **CUIDADO DIÁRIO**:
 1. **Padrão Nativo do Sistema:** Aplicação do System Look and Feel (`UIManager.getSystemLookAndFeelClassName()`), integrando-se visualmente ao sistema operacional (Windows/Linux/macOS) sem dependências externas pesadas.
 2. **Organização por Abas Temáticas:**
-   - **Aba 1 (🕒 Minha Rotina - Doses):** Exibe a lista de horários de hoje com destaque visual para doses pendentes e botões para confirmação individual ou em lote (`⚡ Tomar Todas as Doses Agora`).
-   - **Aba 2 (💊 Meus Medicamentos & Estoque):** Tabela completa de controle com autonomia calculada em dias, status de alerta e botões para novo cadastro, edição, reposição de caixas novas e exclusão com diálogo de confirmação.
-   - **Aba 3 (👨‍👩‍👧 Espaço da Família / Cuidador):** Dashboard com barra de progresso visual de adesão diária e dados do acompanhante (RF06 / RN08).
-   - **Aba 4 (⚙️ Diretrizes Técnicas - Banca AEP):** Painel reservado para a banca avaliadora inspecionar o status da conexão JDBC ativa, integridade referencial do DDL e chamadas polimórficas de POO com `@Override`.
+   - **Aba 1 (Minha Rotina - Doses):** Exibe a lista de horários de hoje com destaque visual para doses pendentes e botões para confirmação individual ou em lote (`Tomar Todas as Doses Agora`).
+   - **Aba 2 (Meus Medicamentos & Estoque):** Tabela completa de controle com autonomia calculada em dias, status de alerta e botões para novo cadastro, edição, reposição de caixas novas e exclusão com diálogo de confirmação.
+   - **Aba 3 (Espaço da Família / Cuidador):** Dashboard com barra de progresso visual de adesão diária e dados do acompanhante (RF06 / RN08).
+   - **Aba 4 (Diretrizes Técnicas - Banca AEP):** Painel reservado para a banca avaliadora inspecionar o status da conexão JDBC ativa, integridade referencial do DDL e chamadas polimórficas de POO com `@Override`.
 3. **Alertas Visuais Proativos:** Popups modais (`JOptionPane`) disparados automaticamente sempre que a confirmação de uma dose reduz o estoque a $\le 5$ dias de autonomia (RF05 / RN03).
 4. **Resiliência e Fallback:** Preservação do modo console CLI como alternativa via argumento `--cli` para servidores ou execuções sem display gráfico.
 

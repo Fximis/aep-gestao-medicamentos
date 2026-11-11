@@ -43,57 +43,40 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
 
     @Override
     public Medicamento buscarPorId(int id) throws SQLException {
-        String sql = "SELECT id, usuario_id, nome, quantidade_estoque, frequencia_horas, quantidade_por_dose " +
-                "FROM medicamento WHERE id = ?";
+        return buscarPorId(id, null);
+    }
 
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, id);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    return instanciarMedicamento(rs);
-                }
-            }
-        }
-        return null;
+    public Medicamento buscarPorId(int id, Integer usuarioId) throws SQLException {
+        String sql = "SELECT * FROM medicamento WHERE id = ?" + (usuarioId == null ? "" : " AND usuario_id = ?");
+        List<Medicamento> lista = usuarioId == null ? consultar(sql, id) : consultar(sql, id, usuarioId);
+        return lista.isEmpty() ? null : lista.getFirst();
     }
 
     @Override
     public List<Medicamento> listarTodos() throws SQLException {
-        String sql = "SELECT id, usuario_id, nome, quantidade_estoque, frequencia_horas, quantidade_por_dose " +
-                "FROM medicamento ORDER BY id";
-        List<Medicamento> lista = new ArrayList<>();
-
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-
-            while (rs.next()) {
-                lista.add(instanciarMedicamento(rs));
-            }
-        }
-        return lista;
+        return consultar("SELECT * FROM medicamento ORDER BY id");
     }
 
-    /**
-     * Lista todos os medicamentos de um paciente específico.
-     */
     public List<Medicamento> listarPorUsuario(int usuarioId) throws SQLException {
-        String sql = "SELECT id, usuario_id, nome, quantidade_estoque, frequencia_horas, quantidade_por_dose " +
-                "FROM medicamento WHERE usuario_id = ? ORDER BY nome";
-        List<Medicamento> lista = new ArrayList<>();
+        return consultar("SELECT * FROM medicamento WHERE usuario_id = ? ORDER BY nome", usuarioId);
+    }
 
+    List<Medicamento> listarParaResponsavel(int pacienteId, int responsavelId) throws SQLException {
+        return consultar("""
+                SELECT m.* FROM medicamento m
+                JOIN acesso_familiar a ON a.paciente_id = m.usuario_id
+                WHERE m.usuario_id = ? AND a.responsavel_id = ?
+                ORDER BY m.nome, m.id
+                """, pacienteId, responsavelId);
+    }
+
+    private List<Medicamento> consultar(String sql, int... parametros) throws SQLException {
+        List<Medicamento> lista = new ArrayList<>();
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-
-            stmt.setInt(1, usuarioId);
-
+            for (int i = 0; i < parametros.length; i++) stmt.setInt(i + 1, parametros[i]);
             try (ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    lista.add(instanciarMedicamento(rs));
-                }
+                while (rs.next()) lista.add(instanciarMedicamento(rs));
             }
         }
         return lista;
@@ -102,7 +85,7 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
     @Override
     public void atualizar(Medicamento medicamento) throws SQLException {
         String sql = "UPDATE medicamento SET nome = ?, quantidade_estoque = ?, frequencia_horas = ?, quantidade_por_dose = ? " +
-                "WHERE id = ?";
+                "WHERE id = ? AND usuario_id = ?";
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -112,8 +95,8 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
             stmt.setInt(3, medicamento.getFrequenciaHoras());
             stmt.setInt(4, medicamento.getQuantidadePorDose());
             stmt.setInt(5, medicamento.getId());
-
-            stmt.executeUpdate();
+            stmt.setInt(6, medicamento.getUsuarioId());
+            exigirRegistro(stmt.executeUpdate());
         }
     }
 
@@ -121,25 +104,36 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
      * Ajuste manual de quantidade em estoque (RF07 e RN07).
      */
     public void atualizarEstoque(int medicamentoId, int novoEstoque) throws SQLException {
+        atualizarEstoque(medicamentoId, novoEstoque, null);
+    }
+
+    public void atualizarEstoque(int medicamentoId, int novoEstoque, Integer usuarioId) throws SQLException {
         if (novoEstoque < 0) {
             throw new IllegalArgumentException("Estoque não pode assumir valores negativos (RN04).");
         }
 
-        String sql = "UPDATE medicamento SET quantidade_estoque = ? WHERE id = ?";
+        String sql = "UPDATE medicamento SET quantidade_estoque = ? WHERE id = ?"
+                + (usuarioId == null ? "" : " AND usuario_id = ?");
 
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setInt(1, novoEstoque);
             stmt.setInt(2, medicamentoId);
-            stmt.executeUpdate();
+            if (usuarioId != null) stmt.setInt(3, usuarioId);
+            exigirRegistro(stmt.executeUpdate());
         }
     }
 
     @Override
     public void excluir(int id) throws SQLException {
-        String sqlDoses = "DELETE FROM dose WHERE medicamento_id = ?";
-        String sqlMed = "DELETE FROM medicamento WHERE id = ?";
+        excluir(id, null);
+    }
+
+    public void excluir(int id, Integer usuarioId) throws SQLException {
+        String filtro = "id = ?" + (usuarioId == null ? "" : " AND usuario_id = ?");
+        String sqlDoses = "DELETE FROM dose WHERE medicamento_id IN (SELECT id FROM medicamento WHERE " + filtro + ")";
+        String sqlMed = "DELETE FROM medicamento WHERE " + filtro;
 
         try (Connection conn = DatabaseConnection.getConnection()) {
             boolean autoCommitOriginal = conn.getAutoCommit();
@@ -148,11 +142,14 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
                 // Remove as doses associadas para garantir integridade referencial com ACID
                 try (PreparedStatement stmtDoses = conn.prepareStatement(sqlDoses)) {
                     stmtDoses.setInt(1, id);
+                    if (usuarioId != null) stmtDoses.setInt(2, usuarioId);
                     stmtDoses.executeUpdate();
                 }
                 try (PreparedStatement stmtMed = conn.prepareStatement(sqlMed)) {
                     stmtMed.setInt(1, id);
-                    stmtMed.executeUpdate();
+                    if (usuarioId != null) stmtMed.setInt(2, usuarioId);
+                    int excluidos = stmtMed.executeUpdate();
+                    if (usuarioId != null) exigirRegistro(excluidos);
                 }
                 conn.commit();
             } catch (SQLException | RuntimeException e) {
@@ -162,6 +159,10 @@ public class MedicamentoDAO implements GenericDAO<Medicamento> {
                 conn.setAutoCommit(autoCommitOriginal);
             }
         }
+    }
+
+    private static void exigirRegistro(int quantidade) throws SQLException {
+        if (quantidade != 1) throw new SQLException("Medicamento indisponível para esta operação.");
     }
 
     private Medicamento instanciarMedicamento(ResultSet rs) throws SQLException {

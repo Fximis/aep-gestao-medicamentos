@@ -8,13 +8,13 @@ public class Responsavel extends Usuario {
 
     private String vinculoFamiliar;
 
-    public Responsavel(int id, String nome, String email, String senha, String vinculoFamiliar) {
-        super(id, nome, email, senha);
+    public Responsavel(int id, String nome, String email, String vinculoFamiliar) {
+        super(id, nome, email);
         this.vinculoFamiliar = vinculoFamiliar;
     }
 
-    public Responsavel(String nome, String email, String senha, String vinculoFamiliar) {
-        this(0, nome, email, senha, vinculoFamiliar);
+    public Responsavel(String nome, String email, String vinculoFamiliar) {
+        this(0, nome, email, vinculoFamiliar);
     }
 
     @Override

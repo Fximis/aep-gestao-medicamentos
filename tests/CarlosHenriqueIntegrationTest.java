@@ -1,14 +1,13 @@
 import config.DatabaseConnection;
 import dao.DoseDAO;
 import dao.MedicamentoDAO;
-import dao.UsuarioDAO;
+import auth.Autenticacao;
 import models.Dose;
 import models.Medicamento;
 import views.ConsoleView;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -19,16 +18,19 @@ import java.util.concurrent.*;
 public class CarlosHenriqueIntegrationTest {
     private static final DoseDAO doses = new DoseDAO();
     private static final MedicamentoDAO medicamentos = new MedicamentoDAO();
+    private static final String SENHA_TESTE = "Somente testes AEP 2026";
     private static int total;
 
     public static void main(String[] args) throws Exception {
-        // O projeto original escolhe MySQL automaticamente. Para isolar o teste, fixa SQLite.
-        Field preferencia = DatabaseConnection.class.getDeclaredField("preferSQLite");
-        preferencia.setAccessible(true);
-        preferencia.set(null, Boolean.TRUE);
+        System.setProperty("aep.banco", "sqlite");
         try (Connection conn = DatabaseConnection.getConnection()) {
             check(conn.getMetaData().getURL().startsWith("jdbc:sqlite:"), "Conexao real SQLite");
         }
+        Autenticacao contas = new Autenticacao();
+        contas.cadastrar("Paciente de teste", "paciente@example.com", Autenticacao.Perfil.PACIENTE, "",
+                SENHA_TESTE.toCharArray(), SENHA_TESTE.toCharArray());
+        contas.cadastrar("Responsável de teste", "responsavel@example.com", Autenticacao.Perfil.RESPONSAVEL, "",
+                SENHA_TESTE.toCharArray(), SENHA_TESTE.toCharArray());
 
         Medicamento m = novo("Teste consumo", 36, 8, 2);
         List<Dose> agenda = doses.listarPorMedicamento(m.getId());
@@ -144,10 +146,12 @@ public class CarlosHenriqueIntegrationTest {
         String confirmacaoCLI = console("6\n" + cliDose + "\nS\n0\n");
         check(confirmacaoCLI.contains("Dose confirmada e estoque baixado")
                 && confirmacaoCLI.contains("ALERTA DE RECOMPRA"), "Opcao 6 confirma e mostra alerta");
-        check(!console("7\nN\n0\n").contains("HISTORICO RECENTE"),
-                "Opcao 7 nao mostra painel sem autorizacao");
-        check(console("7\nS\n0\n").contains("HISTORICO RECENTE"),
-                "Opcao 7 mostra painel autorizado");
+        check(console("7\n1\nresponsavel@example.com\nN\n0\n").contains("Operacao cancelada")
+                && consoleComo("responsavel@example.com", "1\n0\n").contains("Nenhum paciente autorizou"),
+                "Consentimento negado nao compartilha o historico");
+        check(console("7\n1\nresponsavel@example.com\nS\n0\n").contains("Acesso de leitura concedido")
+                && consoleComo("responsavel@example.com", "1\n1\n0\n").contains("HORÁRIOS E HISTÓRICO"),
+                "Consentimento explicito permite consulta em conta separada");
         check(console("5\n" + cli.getId() + "\nN\n0\n").contains("Operacao cancelada")
                 && medicamentos.buscarPorId(cli.getId()) != null, "Cancelamento nao exclui");
         check(console("5\n" + cli.getId() + "\nS\n0\n").contains("Medicamento e doses excluidos")
@@ -190,11 +194,15 @@ public class CarlosHenriqueIntegrationTest {
     }
 
     private static String console(String entrada) throws Exception {
+        return consoleComo("paciente@example.com", entrada);
+    }
+
+    private static String consoleComo(String email, String entrada) throws Exception {
         ByteArrayOutputStream captura = new ByteArrayOutputStream();
         PrintStream original = System.out;
         try (PrintStream saida = new PrintStream(captura, true, StandardCharsets.UTF_8)) {
             System.setOut(saida);
-            new ConsoleView(new Scanner(entrada)).iniciar();
+            new ConsoleView(new Scanner("1\n" + email + "\n" + SENHA_TESTE + "\n" + entrada)).iniciar();
         } finally { System.setOut(original); }
         return captura.toString(StandardCharsets.UTF_8);
     }

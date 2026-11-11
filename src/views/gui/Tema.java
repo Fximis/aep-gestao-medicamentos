@@ -135,6 +135,7 @@ public final class Tema {
             }
         });
         tabela.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+            { putClientProperty("html.disable", true); }
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean selecionado,
                     boolean foco, int row, int col) {
@@ -148,7 +149,7 @@ public final class Tema {
                 setBorder(BorderFactory.createCompoundBorder(
                         BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(239, 243, 240)),
                         new EmptyBorder(8, 12, 8, 12)));
-                setToolTipText(v == null ? null : v.toString());
+                setToolTipText(v == null ? null : "Valor: " + v);
                 return this;
             }
         });
