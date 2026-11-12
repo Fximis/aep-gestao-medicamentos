@@ -1,5 +1,7 @@
 # 2ª entrega — Modelos, contrato DAO e interface gráfica
 
+Este registro descreve a revisão anterior dos modelos e da interface. Para o fluxo de acesso e os testes atuais, consulte o [ADR-005](adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md).
+
 ## O que foi entregue
 
 | Arquivo | Responsabilidade e alterações |

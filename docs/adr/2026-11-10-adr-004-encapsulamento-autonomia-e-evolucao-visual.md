@@ -5,6 +5,8 @@
 **Responsável pela contribuição:** Lucas Thomaz  
 **Relacionados:** [ADR-002](2026-11-10-adr-002-padrao-dao-e-interface-generica.md) e [ADR-003](2026-11-10-adr-003-interface-cli-humanizada-e-painel-tecnico.md)
 
+Os modelos de perfil e o acesso às telas foram atualizados no [ADR-005](2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md).
+
 ---
 
 ## Contexto

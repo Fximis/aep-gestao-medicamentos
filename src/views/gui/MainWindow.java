@@ -1,14 +1,12 @@
 package views.gui;
 
+import auth.Autenticacao;
 import config.DatabaseConnection;
 import dao.DoseDAO;
 import dao.MedicamentoDAO;
-import dao.UsuarioDAO;
 import models.Dose;
 import models.Medicamento;
 import models.Paciente;
-import models.Responsavel;
-import models.Usuario;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -29,10 +27,9 @@ public class MainWindow extends JFrame {
 
     private final MedicamentoDAO medicamentoDAO = new MedicamentoDAO();
     private final DoseDAO doseDAO = new DoseDAO();
-    private final UsuarioDAO usuarioDAO = new UsuarioDAO();
-
-    private Paciente pacienteAtivo;
-    private Responsavel responsavelPadrao;
+    private final Paciente pacienteAtivo;
+    private final Autenticacao.Sessao sessao;
+    private final Autenticacao autenticacao;
 
     // Componentes de interface
     private JLabel lblStatusUsuario;
@@ -48,26 +45,14 @@ public class MainWindow extends JFrame {
     private JTable tblMedicamentos;
     private DefaultTableModel modMedicamentos;
 
-    public MainWindow() {
-        super("Cuidado Diário — Gestão Familiar de Medicamentos");
-        carregarUsuarios();
+    public MainWindow(Autenticacao.Sessao sessao, Autenticacao autenticacao) {
+        super("Cuidado Diário | Gestão Familiar de Medicamentos");
+        if (!(sessao.usuario() instanceof Paciente paciente)) throw new IllegalArgumentException("Perfil inválido.");
+        this.pacienteAtivo = paciente;
+        this.sessao = sessao;
+        this.autenticacao = autenticacao;
         configurarJanela();
         carregarDados();
-    }
-
-    private void carregarUsuarios() {
-        try {
-            List<Paciente> pacientes = usuarioDAO.listarPacientes();
-            this.pacienteAtivo = !pacientes.isEmpty() ? pacientes.get(0) :
-                    new Paciente(1, "João da Silva", "joao@email.com", "123456", "Hipertensão e Diabetes");
-
-            Usuario u = usuarioDAO.buscarPorId(2);
-            this.responsavelPadrao = (u instanceof Responsavel r) ? r :
-                    new Responsavel(2, "Maria Silva Santos", "maria@email.com", "123456", "Filha e Cuidadora");
-        } catch (SQLException e) {
-            this.pacienteAtivo = new Paciente(1, "João da Silva", "joao@email.com", "123456", "Hipertensão");
-            this.responsavelPadrao = new Responsavel(2, "Maria Silva", "maria@email.com", "123456", "Filha");
-        }
     }
 
     private void configurarJanela() {
@@ -140,9 +125,15 @@ public class MainWindow extends JFrame {
             links.add(Box.createVerticalStrut(8));
         }
         menu.add(links, BorderLayout.CENTER);
-        JLabel assinatura = Tema.texto("<html>FEITO PARA CUIDAR<br><br>Uma rotina mais tranquila,<br>um dia de cada vez.</html>",
-                11, false, new Color(163, 200, 186));
-        menu.add(assinatura, BorderLayout.SOUTH);
+        JPanel conta = new JPanel(new GridLayout(0, 1, 0, 8));
+        conta.setOpaque(false);
+        JButton senha = Tema.botao("Alterar senha", false);
+        senha.addActionListener(e -> ContaDialog.alterarSenha(this, autenticacao, sessao));
+        JButton sair = Tema.botao("Sair da conta", false);
+        sair.addActionListener(e -> ContaDialog.sair(this, autenticacao, sessao));
+        conta.add(senha);
+        conta.add(sair);
+        menu.add(conta, BorderLayout.SOUTH);
         return menu;
     }
 
@@ -158,8 +149,7 @@ public class MainWindow extends JFrame {
         saudacao.add(Box.createVerticalStrut(10));
         saudacao.add(Tema.texto("Seu cuidado, em dia.", 29, true, Tema.TEXTO));
         saudacao.add(Box.createVerticalStrut(10));
-        lblStatusUsuario = Tema.texto("Paciente: " + pacienteAtivo.getNome()
-                + "  •  Cuidador: " + responsavelPadrao.getNome(), 12, false, Tema.SUAVE);
+        lblStatusUsuario = Tema.texto("Paciente: " + pacienteAtivo.getNome(), 12, false, Tema.SUAVE);
         saudacao.add(lblStatusUsuario);
         topo.add(saudacao, BorderLayout.CENTER);
         JPanel data = new JPanel();
@@ -275,10 +265,14 @@ public class MainWindow extends JFrame {
     private JPanel criarAbaFamilia() {
         JPanel cards = new JPanel(new GridLayout(3, 1, 0, 16));
         cards.setOpaque(false);
-        cards.add(criarCard("Cuidar é melhor em companhia",
-                String.format("<html>Responsável: <b>%s</b> (%s)<br>Paciente: <b>%s</b><br>Condição médica: %s</html>",
-                responsavelPadrao.getNome(), responsavelPadrao.getVinculoFamiliar(),
-                pacienteAtivo.getNome(), pacienteAtivo.getCondicaoMedica())));
+        JPanel acesso = Tema.card(new BorderLayout(0, 12));
+        acesso.add(Tema.texto("Acesso familiar", 16, true, Tema.TEXTO), BorderLayout.NORTH);
+        acesso.add(Tema.texto("Autorize um responsável cadastrado a consultar sua rotina.", 13, false, Tema.SUAVE),
+                BorderLayout.CENTER);
+        JButton gerenciar = Tema.botao("Gerenciar acessos", true);
+        gerenciar.addActionListener(e -> ContaDialog.gerenciarAcessos(this, sessao));
+        acesso.add(gerenciar, BorderLayout.SOUTH);
+        cards.add(acesso);
         JPanel adesao = Tema.card(new BorderLayout(0, 14));
         adesao.add(Tema.texto("Um passo de cada vez", 16, true, Tema.TEXTO), BorderLayout.NORTH);
         lblAdesaoTexto = Tema.texto("Consultando doses de hoje...", 13, false, Tema.SUAVE);
@@ -323,7 +317,6 @@ public class MainWindow extends JFrame {
         sb.append("   - Herança: 'Paciente extends Usuario' e 'Responsavel extends Usuario'.\n");
         sb.append("   - Polimorfismo (@Override): Método abstrato 'obterTipo()' sobrescrito em cada subclasse:\n");
         sb.append("     * Chamada Polimórfica [Paciente]: ").append(pacienteAtivo.obterTipo()).append("\n");
-        sb.append("     * Chamada Polimórfica [Responsável]: ").append(responsavelPadrao.obterTipo()).append("\n");
         sb.append("   - Encapsulamento: Atributos privados e métodos de cálculo de domínio ('calcularDiasRestantes').\n\n");
 
         sb.append("3. OPERAÇÕES DE CRUD COMPLETO NA ENTIDADE PRINCIPAL (Peso 0,3):\n");
@@ -473,7 +466,7 @@ public class MainWindow extends JFrame {
         int doseId = (Integer) tblDoses.getValueAt(row, 0);
         String situacao = (String) tblDoses.getValueAt(row, 4);
 
-        if (situacao != null && situacao.contains("Tomada")) {
+        if (situacao != null && situacao.equals("Confirmada")) {
             JOptionPane.showMessageDialog(this,
                     "Esta dose já foi registrada como tomada anteriormente.",
                     "Dose já Confirmada", JOptionPane.WARNING_MESSAGE);
@@ -481,7 +474,7 @@ public class MainWindow extends JFrame {
         }
 
         try {
-            Medicamento med = doseDAO.confirmarTomadaDose(doseId);
+            Medicamento med = doseDAO.confirmarTomadaDose(doseId, pacienteAtivo.getId());
             carregarDados();
 
             String msg = String.format("Dose confirmada com sucesso!\n\n" +
@@ -529,7 +522,7 @@ public class MainWindow extends JFrame {
                     ids.add(d.getId());
                 }
 
-                List<Medicamento> atualizados = doseDAO.confirmarTodasDosesAgora(ids);
+                List<Medicamento> atualizados = doseDAO.confirmarTodasDosesAgora(ids, pacienteAtivo.getId());
                 carregarDados();
 
                 boolean algumAlerta = false;
@@ -564,8 +557,7 @@ public class MainWindow extends JFrame {
         if (dlg.isConfirmado()) {
             Medicamento novo = dlg.getMedicamento();
             try {
-                medicamentoDAO.inserir(novo);
-                doseDAO.gerarAgendaFutura(novo, 6);
+                doseDAO.cadastrarTratamento(novo, 6);
                 carregarDados();
                 JOptionPane.showMessageDialog(this,
                         "Medicamento '" + novo.getNome() + "' cadastrado com sucesso no banco de dados!",
@@ -589,7 +581,7 @@ public class MainWindow extends JFrame {
 
         int id = (Integer) tblMedicamentos.getValueAt(row, 0);
         try {
-            Medicamento med = medicamentoDAO.buscarPorId(id);
+            Medicamento med = medicamentoDAO.buscarPorId(id, pacienteAtivo.getId());
             if (med == null) {
                 JOptionPane.showMessageDialog(this, "Medicamento não encontrado.", "Erro", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -624,7 +616,7 @@ public class MainWindow extends JFrame {
 
         int id = (Integer) tblMedicamentos.getValueAt(row, 0);
         try {
-            Medicamento med = medicamentoDAO.buscarPorId(id);
+            Medicamento med = medicamentoDAO.buscarPorId(id, pacienteAtivo.getId());
             if (med == null) return;
 
             ReporEstoqueDialog dlg = new ReporEstoqueDialog(this, med);
@@ -633,7 +625,7 @@ public class MainWindow extends JFrame {
             if (dlg.isConfirmado()) {
                 med.adicionarEstoque(dlg.getQuantidadeAdicionada());
                 int novaQtd = med.getQuantidadeEstoque();
-                medicamentoDAO.atualizarEstoque(id, novaQtd);
+                medicamentoDAO.atualizarEstoque(id, novaQtd, pacienteAtivo.getId());
                 carregarDados();
 
                 JOptionPane.showMessageDialog(this,
@@ -665,7 +657,7 @@ public class MainWindow extends JFrame {
 
         if (confirm == JOptionPane.YES_OPTION) {
             try {
-                medicamentoDAO.excluir(id);
+                medicamentoDAO.excluir(id, pacienteAtivo.getId());
                 carregarDados();
                 JOptionPane.showMessageDialog(this,
                         "Medicamento e doses dependentes excluídos com sucesso do banco de dados.",

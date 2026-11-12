@@ -39,10 +39,9 @@ sem simular persistencia com listas. Mantenha os dois JARs que ja vieram em `lib
 Se usar MySQL, execute o `database/schema.sql` original antes e confira a configuracao
 em `src/config/DatabaseConnection.java`.
 
-No SQLite, o inicializador existente cria a estrutura e os dados demonstrativos.
-O `schema.sql` original usa sintaxe de MySQL; nao o importe diretamente no SQLite.
-A sessao do console usa os pacientes realmente cadastrados; se houver mais de um,
-permite selecionar. Nao foram criados login nem novas tabelas de permissoes.
+No SQLite, o inicializador cria as tabelas. Cadastre a conta e entre pelo menu de
+acesso para abrir o console de medicamentos. O consentimento familiar é persistido
+conforme o [ADR-005](docs/adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md).
 
 Para executar os testes automaticos:
 
@@ -73,8 +72,9 @@ O script Bash foi fornecido para compatibilidade; a execucao validada foi no Win
 4. Ajustar Estoque Manualmente (Update de Estoque).
 5. Excluir Medicamento (Delete).
 6. Confirmar Dose Tomada (Baixa + Alerta se <= 5 dias).
-7. Visao do Responsavel / Cuidador.
-0. Sair.
+7. Gerenciar acesso familiar.
+8. Alterar senha.
+0. Sair da conta.
 
 Selecoes de medicamento e dose usam o **ID mostrado na tela**, e nao a posicao na lista.
 Todos os fluxos de alteracao pedem confirmacao.
@@ -85,22 +85,21 @@ Mudanca apenas de nome conserva os horarios da agenda.
 
 ## Roteiro rapido para apresentar
 
-1. Execute o console e use a opcao 2 para mostrar dados que vieram do banco.
+1. Execute o console, cadastre uma conta de paciente e entre com ela. Use a opção 2 para consultar os dados do banco.
 2. Cadastre um medicamento de teste com estoque 12, intervalo 12 horas e 1 unidade/dose.
    A autonomia sera de 6 dias.
 3. Na opcao 6, escolha o ID da primeira dose desse medicamento e confirme a tomada.
    O estoque cai para 11 e o modelo calcula 5 dias inteiros, exibindo o alerta.
 4. Na opcao 3, altere o nome; na opcao 4, confira e ajuste o estoque.
-5. Na opcao 7, autorize a visualizacao local pelo cuidador e mostre pendencias e historico.
+5. Cadastre uma conta de responsável. Na conta do paciente, autorize o e-mail do responsável pela opção 7. Entre como responsável e consulte o histórico.
 6. Saia e abra de novo: a informacao permanece no banco.
 7. Exclua somente o medicamento de teste pela opcao 5.
 8. Execute o script de testes para demonstrar rejeicao de duplicidade, falta de estoque,
    rollback e concorrencia.
 
-O alerta e exibido no console e no painel autorizado. Nao ha envio de SMS,
-WhatsApp ou notificacao externa. O consentimento da opcao 7 e local e vale para a
-visualizacao solicitada; nao equivale a autenticacao de usuarios ou autorizacao
-persistida. Os lembretes sao atualizados ao retornar ao menu, sem servico em segundo plano.
+Os alertas são exibidos no console e no painel autorizado. O paciente concede e
+revoga a consulta a partir de sua própria conta. Os lembretes são atualizados ao
+retornar ao menu.
 
 ## Como colocar no GitHub com sua contribuicao
 

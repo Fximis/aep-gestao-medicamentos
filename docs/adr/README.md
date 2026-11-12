@@ -4,7 +4,7 @@ Este diretório registra as decisões arquiteturais fundamentais adotadas no pro
 
 ---
 
-## 📑 Índice de Decisões
+## Índice de Decisões
 
 | Identificador | Título | Data | Status |
 | :---: | :--- | :---: | :---: |
@@ -12,3 +12,4 @@ Este diretório registra as decisões arquiteturais fundamentais adotadas no pro
 | **[ADR-002](2026-11-10-adr-002-padrao-dao-e-interface-generica.md)** | Camada de Acesso a Dados com Padrão DAO e Interface Genérica | 2026-11-10 | Vigente |
 | **[ADR-003](2026-11-10-adr-003-interface-cli-humanizada-e-painel-tecnico.md)** | Interface Gráfica Desktop (Java Swing GUI) Humanizada com Painel Técnico Integrado | 2026-11-10 | Vigente |
 | **[ADR-004](2026-11-10-adr-004-encapsulamento-autonomia-e-evolucao-visual.md)** | Encapsulamento dos Modelos, Autonomia Derivada e Evolução da Interface — contribuição de Lucas Thomaz | 2026-11-10 | Vigente |
+| **[ADR-005](2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)** | Autenticação e controle de acesso familiar | 2026-11-11 | Vigente |

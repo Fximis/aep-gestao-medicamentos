@@ -1,70 +1,25 @@
 package models;
 
-/**
- * Classe Abstrata base para a hierarquia de usuários do sistema.
- * Demonstra o pilar de Abstração em POO.
- */
+/** Identidade usada pela aplicação. As credenciais são tratadas na autenticação. */
 public abstract class Usuario {
+    private final int id;
+    private final String nome;
+    private final String email;
 
-    private int id;
-    private String nome;
-    private String email;
-    private String senha;
-
-    public Usuario(int id, String nome, String email, String senha) {
+    protected Usuario(int id, String nome, String email) {
         this.id = id;
         this.nome = nome;
         this.email = email;
-        this.senha = senha;
     }
 
-    public boolean autenticar(String emailTentativa, String senhaTentativa) {
-        if (this.email == null || this.senha == null) {
-            return false;
-        }
-        return this.email.equalsIgnoreCase(emailTentativa) && this.senha.equals(senhaTentativa);
-    }
-
-    /**
-     * Método abstrato a ser implementado por cada subclasse concreta (Polimorfismo).
-     */
     public abstract String obterTipo();
 
-    // Getters e Setters (Encapsulamento)
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getNome() {
-        return nome;
-    }
-
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getSenha() {
-        return senha;
-    }
-
-    public void setSenha(String senha) {
-        this.senha = senha;
-    }
+    public int getId() { return id; }
+    public String getNome() { return nome; }
+    public String getEmail() { return email; }
 
     @Override
     public String toString() {
-        return "[" + obterTipo() + "] ID: " + id + " | Nome: " + nome + " | Email: " + email;
+        return nome + " (" + email + ")";
     }
 }

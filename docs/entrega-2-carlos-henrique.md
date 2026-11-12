@@ -35,13 +35,12 @@ dele ou garantir sozinho todos os criterios da avaliacao final do grupo.
 | RF04 / RN05 - Estoque e autonomia | Baixa condicional em SQL e metodos de Medicamento | Estoque relido do banco e autonomia calculada pelo modelo |
 | RF05 / RN03 - Recompra | exibirAlerta e verificarAlertaRecompra | Alerta quando autonomia inteira calculada pelo modelo e <= 5 dias |
 | RN04 - Nao negatividade | Modelo existente e condicao no UPDATE de estoque | Falta de estoque provoca rollback sem confirmar a dose |
-| RF06 / RN08 - Cuidador | Opcao 7 | Exige autorizacao explicita local e mostra estoque, pendencias e historico |
+| RF06 / RN08 - Cuidador | Opcao 7 | O paciente autoriza a conta do responsável a consultar estoque, pendências e histórico |
 | RF07 / RN07 - Ajuste | Opcao 4 e MedicamentoDAO.atualizarEstoque | Grava novo total fisico, validado contra negativos |
 | CRUD completo | Opcoes 1, 2, 3, 5 | Dados consultados por novas conexoes; exclusao remove doses associadas |
 
-O consentimento no console demonstra o fluxo de RN08 na sessao local.
-Nao foi adicionado controle persistente de vinculos, login ou acesso remoto.
-Os alertas sao exibidos na aplicacao, sem simular envio a familiares.
+O consentimento é concedido e revogado pela conta do paciente. A consulta é
+feita pelo responsável autenticado. [ADR-005](adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)
 
 ## Contratos esperados do trabalho do Lucas
 
@@ -97,15 +96,9 @@ ajuste persistido e negativo; lote atomico; duas conexoes concorrentes; todas as
 opcoes do console; consentimento; cancelamento; entrada invalida; EOF sem insercao parcial;
 exclusao com remocao do historico.
 
-Os testes forcarao somente SQLite, em diretorio temporario, sem tocar no banco principal.
-Essa selecao usa reflexao apenas no codigo de teste porque a configuracao original
-tem campos privados e nao oferece selecao publica de ambiente. O codigo de producao
-nao usa reflexao.
-
-As fontes da GUI existente foram compiladas, preservando seus metodos de acesso a DoseDAO.
-Nao foi realizada validacao interativa da GUI nem execucao em servidor MySQL.
-A configuracao de conexao e o SQL original foram mantidos: mudancas neles pertencem
-a integracao geral do grupo.
+Os testes usam SQLite em diretório temporário. A propriedade `aep.banco` seleciona
+o banco e o teste cadastra as contas usadas pelo console. O ADR-005 registra
+a validação mais recente do fluxo de conta.
 
 ## Checklist de integracao antes da entrega do grupo
 

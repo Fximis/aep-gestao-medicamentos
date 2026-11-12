@@ -8,7 +8,7 @@ if errorlevel 1 (
     exit /b 1
 )
 if not exist bin mkdir bin
-javac -encoding UTF-8 -cp "lib/*;src" -d bin src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/views/gui/*.java src/Main.java
+javac -encoding UTF-8 -cp "lib/*;src" -d bin src/auth/*.java src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/views/gui/*.java src/Main.java
 if errorlevel 1 (
     echo Nao foi possivel compilar o projeto. Confira o erro acima.
     pause

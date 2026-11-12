@@ -123,6 +123,14 @@ public class DoseDAO {
                 " WHERE m.usuario_id = ? ORDER BY d.horario_previsto DESC, d.id DESC", usuarioId);
     }
 
+    List<Dose> listarParaResponsavel(int pacienteId, int responsavelId) throws SQLException {
+        return consultarDoses(SELECT_DOSES + """
+                JOIN acesso_familiar a ON a.paciente_id = m.usuario_id
+                WHERE m.usuario_id = ? AND a.responsavel_id = ?
+                ORDER BY d.horario_previsto DESC, d.id DESC
+                """, pacienteId, responsavelId);
+    }
+
     public List<Dose> listarPorMedicamento(int medicamentoId) throws SQLException {
         return consultarDoses(SELECT_DOSES +
                 " WHERE d.medicamento_id = ? ORDER BY d.horario_previsto, d.id", medicamentoId);
@@ -161,6 +169,15 @@ public class DoseDAO {
     }
 
     public List<Medicamento> confirmarTodasDosesAgora(List<Integer> doseIds) throws SQLException {
+        return confirmarLote(doseIds, null);
+    }
+
+    public List<Medicamento> confirmarTodasDosesAgora(List<Integer> doseIds, int pacienteId) throws SQLException {
+        if (pacienteId <= 0) throw new IllegalArgumentException("Paciente inválido.");
+        return confirmarLote(doseIds, pacienteId);
+    }
+
+    private List<Medicamento> confirmarLote(List<Integer> doseIds, Integer pacienteId) throws SQLException {
         Objects.requireNonNull(doseIds, "Informe as doses.");
         if (doseIds.isEmpty()) return List.of();
         if (doseIds.stream().anyMatch(id -> id == null || id <= 0)
@@ -170,7 +187,7 @@ public class DoseDAO {
         Collections.sort(ordenados);
         return emTransacao(conn -> {
             List<Medicamento> resultado = new ArrayList<>();
-            for (int id : ordenados) resultado.add(confirmarInternamente(conn, id, null));
+            for (int id : ordenados) resultado.add(confirmarInternamente(conn, id, pacienteId));
             return resultado;
         });
     }

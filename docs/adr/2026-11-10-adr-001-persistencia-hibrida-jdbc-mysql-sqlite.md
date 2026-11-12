@@ -3,6 +3,8 @@
 **Status:** Vigente  
 **Data:** 2026-11-10  
 
+A criação de contas e a migração de credenciais seguem o [ADR-005](2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md).
+
 ---
 
 ## Contexto

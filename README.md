@@ -9,18 +9,18 @@
 
 ---
 
-## 📌 Visão Geral do Projeto
+## Visão Geral do Projeto
 
 Este projeto é desenvolvido para a **Atividade de Estudo Programada (AEP)** do **4º Semestre**, com foco em engenharia de software, modelagem de sistemas orientados a objetos e persistência relacional.
 
 O objetivo da solução é resolver uma das maiores dores no cuidado à saúde domiciliar: a **baixa adesão a tratamentos contínuos** e o **descontrole de estoque de medicamentos**, fatores que frequentemente levam a omissões de doses, interrupções involuntárias do tratamento e sobrecarga de cuidadores e familiares.
 
-### 🎯 Alinhamento com a ONU: ODS 3 (Saúde e Bem-Estar)
+### Alinhamento com a ONU: ODS 3 (Saúde e Bem-Estar)
 O projeto está alinhado diretamente ao **ODS 3 da ONU (Saúde e Bem-Estar)**, atuando preventivamente na garantia de tratamentos médicos seguros e regulares, diminuindo riscos de internação por descompensação clínica decorrente da falta do medicamento.
 
 ---
 
-## ⚙️ Como o Projeto Funciona
+## Como o Projeto Funciona
 
 O sistema atua em ciclo fechado entre o **horário programado**, a **confirmação do paciente** e a **projeção matemática do estoque**.
 
@@ -33,7 +33,7 @@ flowchart TD
     D -- Sim --> F[Registra histórico e deduz quantidade do estoque]
     F --> G[Recalcula automaticamente a autonomia em dias]
     G --> H{Dias restantes <= 5?}
-    H -- Sim --> I[🚨 Alerta Proativo de Recompra emitido ao Paciente e Cuidador]
+    H -- Sim --> I[Alerta Proativo de Recompra emitido ao Paciente e Cuidador]
     H -- Não --> J[Estoque em nível seguro]
 ```
 
@@ -59,7 +59,7 @@ Familiares e cuidadores com permissão autorizada podem acompanhar o estoque e o
 
 ---
 
-## 📂 Estrutura de Pastas e Diretórios
+## Estrutura de Pastas e Diretórios
 
 O repositório foi concebido para manter a rastreabilidade acadêmica e a divisão de responsabilidades de forma limpa:
 
@@ -87,7 +87,7 @@ aep-gestao-medicamentos/
 
 ---
 
-## 🏛️ Arquitetura e Modelagem
+## Arquitetura e Modelagem
 
 ### Padrão e Tecnologias
 * **Linguagem Java:** Tipagem estática e Orientação a Objetos, assegurando robustez no encapsulamento e reaproveitamento via herança e polimorfismo.
@@ -103,8 +103,6 @@ classDiagram
         -int id
         -String nome
         -String email
-        -String senha
-        +autenticar() boolean
         +obterTipo() String
     }
 
@@ -174,13 +172,20 @@ erDiagram
         boolean status_tomado
     }
 
+    ACESSO_FAMILIAR {
+        int paciente_id PK, FK
+        int responsavel_id PK, FK
+    }
+
     USUARIO ||--o{ MEDICAMENTO : "cadastra"
     MEDICAMENTO ||--o{ DOSE : "possui"
+    USUARIO ||--o{ ACESSO_FAMILIAR : "concede como paciente"
+    USUARIO ||--o{ ACESSO_FAMILIAR : "recebe como responsavel"
 ```
 
 ---
 
-## 📋 Especificação de Requisitos e Regras
+## Especificação de Requisitos e Regras
 
 ### Requisitos Funcionais (RF)
 | Identificador | Requisito | Descrição Resumida |
@@ -201,27 +206,24 @@ erDiagram
 
 ---
 
-## 💻 Como Executar a Aplicação (2ª Entrega — Sistemas Operacionais)
+## Como Executar a Aplicação (2ª Entrega — Sistemas Operacionais)
 
 O projeto foi construído utilizando **Java Standard Edition (SE)** com **JDBC puro**, sem necessidade de instalação de ferramentas adicionais de build (como Maven ou Gradle). Os drivers JDBC já se encontram versionados na pasta `lib/`.
 
-### 1. Pré-Requisitos
-* **Java Development Kit (JDK):** Versão 21 LTS (ou superior).
-* **Banco de Dados Relacional:**
-  * **MySQL 8.x** (porta 3306, usuário `root`, senha em branco — padrão do Laragon/XAMPP).
-  * *Observação de Resiliência:* Se o servidor MySQL não estiver em execução na máquina do avaliador, o sistema ativa automaticamente a conexão JDBC via **SQLite** (`database/gestao_medicamentos.db`), garantindo execução imediata sem falhas.
+### 1. Pré-requisitos
 
-### 2. Configuração do Banco MySQL (Opcional)
-Se desejar executar utilizando o MySQL:
-```powershell
-mysql -u root -p < database/schema.sql
-```
+- JDK 21 ou superior, com `java` e `javac` disponíveis.
+- Drivers JDBC incluídos em `lib/`.
+
+### 2. Banco de dados
+
+O SQLite cria a estrutura local na primeira conexão. Para usar um servidor MySQL local, importe o esquema e informe as credenciais pelo ambiente. [Configuração do banco](database/README.md)
 
 ### 3. Compilação do Código-Fonte
 No terminal (PowerShell ou CMD) na raiz do projeto:
 ```powershell
 # Windows (PowerShell / CMD):
-javac -encoding UTF-8 -cp "lib/*;src" -d bin src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/views/gui/*.java src/Main.java
+javac -encoding UTF-8 -cp "lib/*;src" -d bin src/auth/*.java src/models/*.java src/config/*.java src/dao/*.java src/views/*.java src/views/gui/*.java src/Main.java
 ```
 *(No Linux / macOS, substitua o separador `;` por `:`: `javac -cp "lib/*:src" ...`)*
 
@@ -236,24 +238,24 @@ java -cp "bin;lib/*" Main
 java -cp "bin;lib/*" Main --cli
 ```
 
-### 5. Interface Gráfica — Cuidado Diário
+### 5. Primeiro acesso
 
-Para abrir com facilidade, extraia o projeto e execute **`iniciar.bat` no Windows** ou **`sh iniciar.sh` no Linux/macOS**. É necessário JDK 21 ou superior.
+1. Extraia o projeto e execute `iniciar.bat` no Windows ou `sh iniciar.sh` no Linux/macOS.
+2. Abra **Cadastro**, informe nome e e-mail, selecione **Paciente** ou **Responsável** e confirme uma senha de 5 a 128 caracteres.
+3. Entre com o e-mail e a senha cadastrados. O paciente acessa sua rotina e seus medicamentos. O responsável consulta os pacientes que autorizaram sua conta.
+4. No painel do paciente, abra **Minha família → Gerenciar acessos**. Informe o e-mail da conta do responsável para autorizar a consulta. Use a lista de responsáveis autorizados para revogar o acesso.
+5. Use **Alterar senha** para trocar a credencial com a senha atual ou **Sair da conta** para voltar à entrada.
 
-A janela usa menu lateral, cores em verde-petróleo, cartões de resumo, tabelas com destaque de situação e formulários padronizados:
+O modo `--cli` oferece as mesmas operações de conta em um terminal interativo. A digitação de senha fica oculta.
 
-* **Minha rotina:** horários e confirmação de doses, com pendências em primeiro lugar.
-* **Medicamentos:** cadastro, consulta, edição, reposição e exclusão, com autonomia e alerta de recompra.
-* **Minha família:** informações do paciente/cuidador e progresso das doses do dia.
-* **Sobre o projeto:** evidências técnicas para apresentação da AEP.
+### 6. Documentação da entrega
 
-Os cartões superiores mostram doses para agora, medicamentos que precisam de recompra e progresso diário. O estoque só diminui mediante confirmação da dose.
-
-Consulte [`docs/2a_entrega_modelos_interface.md`](docs/2a_entrega_modelos_interface.md) para os ajustes nos modelos, regras RN03/RN04/RN05, contrato `GenericDAO` e execução dos testes.
+- Regras de estoque, autonomia e contrato DAO. [Modelos e interface](docs/2a_entrega_modelos_interface.md)
+- Cadastro, migração de credenciais e consentimento. [ADR-005](docs/adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)
 
 ---
 
-## 📅 Cronograma de Execução da AEP
+## Cronograma de Execução da AEP
 
 | Data | Atividade | Responsável | Status |
 | :---: | :--- | :---: | :---: |
@@ -270,18 +272,18 @@ Consulte [`docs/2a_entrega_modelos_interface.md`](docs/2a_entrega_modelos_interf
 
 ---
 
-## 🚀 Roadmap e Visão de Futuro (Pós-MVP)
+## Roadmap e Visão de Futuro (Pós-MVP)
 
 Para além dos entregáveis acadêmicos, a arquitetura do projeto foi desenhada visando evolução contínua:
-* 📦 **Integração com API da ANVISA:** Leitura de código de barras para autopreenchimento de posologia e lote.
-* 📲 **Disparo Externo (WhatsApp/SMS):** Integração com APIs como Twilio para alertar cuidadores se doses forem esquecidas.
-* 📍 **Geolocalização de Farmácias:** Sugestão de farmácias parceiras com delivery quando o estoque atingir o alerta de 5 dias.
-* 🏆 **Gamificação de Adesão:** Sistema de pontuação e sequência diária (*streaks*) para estimular idosos no cumprimento do horário.
-* 📄 **Relatórios Médicos em PDF:** Exportação de histórico de adesão para acompanhamento em consultas clínicas.
+* **Integração com API da ANVISA:** Leitura de código de barras para autopreenchimento de posologia e lote.
+* **Disparo Externo (WhatsApp/SMS):** Integração com APIs como Twilio para alertar cuidadores se doses forem esquecidas.
+* **Geolocalização de Farmácias:** Sugestão de farmácias parceiras com delivery quando o estoque atingir o alerta de 5 dias.
+* **Gamificação de Adesão:** Sistema de pontuação e sequência diária (*streaks*) para estimular idosos no cumprimento do horário.
+* **Relatórios Médicos em PDF:** Exportação de histórico de adesão para acompanhamento em consultas clínicas.
 
 ---
 
-## 👥 Integrantes da Equipe
+## Integrantes da Equipe
 
 | Nome Completo | R.A. |
 | :--- | :---: |
