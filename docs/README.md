@@ -1,15 +1,13 @@
-# Documentação do Projeto — AEP (4º Semestre)
+# Documentação do Cuidado Diário
 
-Este diretório centraliza os artefatos de engenharia de software, modelagens e registros de decisões arquiteturais do projeto.
+Para compilar e executar o projeto, consulte o [README da raiz](../README.md).
 
----
-
-## Estrutura de Documentos
-
-* **[1a_entrega.md](1a_entrega.md)**: Documento formal da 1ª Entrega (Concepção, Alinhamento com a ONU ODS 3, Requisitos Funcionais e Não Funcionais, Regras de Negócio, Diagrama de Classes e DER).
-* **[adr/](adr/README.md)**: Registro de Decisões Arquiteturais (*Architectural Decision Records*):
-  - **[ADR-001](adr/2026-11-10-adr-001-persistencia-hibrida-jdbc-mysql-sqlite.md)**: Persistência Relacional Híbrida via JDBC (MySQL com Fallback SQLite).
-  - **[ADR-002](adr/2026-11-10-adr-002-padrao-dao-e-interface-generica.md)**: Camada de Acesso a Dados com Padrão DAO e Interface Genérica.
-  - **[ADR-003](adr/2026-11-10-adr-003-interface-cli-humanizada-e-painel-tecnico.md)**: Interface Gráfica Desktop (Java Swing GUI) Humanizada com Painel Técnico Integrado.
-  - **[ADR-004](adr/2026-11-10-adr-004-encapsulamento-autonomia-e-evolucao-visual.md)** — Encapsulamento dos modelos, autonomia e evolução visual.
-  - **[ADR-005](adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)** — Autenticação e controle de acesso familiar.
+| Documento | Conteúdo |
+| --- | --- |
+| [Diretrizes gerais da AEP](referencias/diretrizes-gerais-aep.pdf) | Orientações institucionais para o 4º semestre. |
+| [Primeira entrega](1a_entrega.md) | Concepção, requisitos, regras de negócio e modelagem. |
+| [Arquitetura do código](arquitetura.md) | Estrutura dos pacotes Java e suas responsabilidades. |
+| [Banco de dados](banco-de-dados.md) | Configuração do SQLite e do MySQL. |
+| [Modelos e interface na segunda entrega](2a_entrega_modelos_interface.md) | Evolução dos modelos, regras de estoque, interface e testes. |
+| [Contribuição de Carlos Henrique](entrega-2-carlos-henrique.md) | Console, transações de doses e evidências dos testes. |
+| [Decisões de arquitetura](adr/README.md) | Histórico e justificativa das decisões técnicas do projeto. |

@@ -23,4 +23,4 @@ mysql -u root -p -e "source database/schema.sql"
 
 Defina `AEP_BANCO=mysql`, `AEP_MYSQL_USER` e `AEP_MYSQL_PASSWORD` no ambiente de execução. O modo `auto`, usado por padrão, tenta MySQL e seleciona SQLite se a conexão inicial estiver indisponível. A seleção permanece durante a execução.
 
-A inicialização migra credenciais antigas e prepara a tabela de acesso familiar. Consulte a decisão de migração e os limites de operação. [ADR-005](../docs/adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)
+A inicialização migra credenciais antigas e prepara a tabela de acesso familiar. Consulte a decisão de migração e os limites de operação. [ADR-005](adr/2026-11-11-adr-005-autenticacao-e-controle-de-acesso.md)

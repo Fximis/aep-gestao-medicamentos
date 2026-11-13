@@ -100,12 +100,17 @@ Os testes usam SQLite em diretório temporário. A propriedade `aep.banco` selec
 o banco e o teste cadastra as contas usadas pelo console. O ADR-005 registra
 a validação mais recente do fluxo de conta.
 
-## Checklist de integracao antes da entrega do grupo
+## Console e testes no projeto integrado
 
-- Conferir as assinaturas dos modelos e GenericDAO depois do merge do Lucas.
-- Compilar o conjunto e executar `scripts/testar-carlos.ps1`.
-- Executar `scripts/executar-carlos.ps1` e apresentar CRUD e persistencia.
-- Se o grupo escolheu MySQL, importar o schema original e testar nesse ambiente tambem.
-- Preservar o cronograma e os requisitos originais no README principal.
-- Cada integrante realizar seu proprio commit, usando sua conta e email verificado.
-- Entregar o codigo integrado do repositorio; este pacote e apenas a contribuicao do Carlos.
+A contribuição faz parte da versão integrada. Os pré-requisitos, as opções de banco e o procedimento de cadastro estão no [guia de execução](../README.md).
+
+No PowerShell, a partir da raiz do projeto, use os seguintes comandos para iniciar o console ou executar os testes de integração, respectivamente.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\executar-carlos.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\testar-carlos.ps1
+```
+
+Em Linux, abra o console com `bash scripts/executar-carlos.sh`. O teste de integração usa SQLite em um diretório temporário, com dados próprios da execução.
+
+No menu do paciente, as opções 1 a 5 cuidam do cadastro, da consulta, da edição, do ajuste de estoque e da exclusão de medicamentos. A opção 6 confirma a dose, a 7 gerencia o acesso familiar e a 8 altera a senha. A opção 0 encerra a sessão.
